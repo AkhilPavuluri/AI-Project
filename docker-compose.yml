@@ -1,147 +1,55 @@
-version: '3.8'
-
 services:
-  # Vector Database for embeddings and similarity search
-  qdrant:
-    image: qdrant/qdrant:latest
-    container_name: gitam-qdrant
+  chromadb:
+    image: chromadb/chroma:latest
+    container_name: gitam-chromadb
     ports:
-      - "6333:6333"
-      - "6334:6334"
+      - "8001:8000"
     environment:
-      # TODO: Configure QDRANT_API_KEY for production
-      QDRANT__SERVICE__HTTP_PORT: 6333
-      QDRANT__SERVICE__GRPC_PORT: 6334
-    # volumes:
-      # TODO: Set up persistent volume for production
-      # - qdrant_data:/qdrant/storage
-    networks:
-      - gitam-network
+      - CHROMA_SERVER_HOST=0.0.0.0
+      - CHROMA_SERVER_HTTP_PORT=8000
+    volumes:
+      - chromadb_data:/chroma/chroma
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/v1/heartbeat"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
 
-  # Full-text search engine for document retrieval
-  elasticsearch:
-    image: docker.elastic.co/elasticsearch/elasticsearch:8.11.0
-    container_name: gitam-elasticsearch
+  backend:
+    build: ./backend
+    container_name: gitam-backend
     ports:
-      - "9200:9200"
-      - "9300:9300"
+      - "8000:8000"
     environment:
-      # TODO: Set strong passwords for production
-      - discovery.type=single-node
-      - xpack.security.enabled=false
-      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
-    # volumes:
-      # TODO: Set up persistent volume for production
-      # - elasticsearch_data:/usr/share/elasticsearch/data
-    networks:
-      - gitam-network
+      - CHROMA_HOST=chromadb
+      - CHROMA_PORT=8000
+      - OLLAMA_URL=http://host.docker.internal:11434
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+    depends_on:
+      - chromadb
     restart: unless-stopped
+    volumes:
+      - ./backend:/app
+    command: uvicorn backend_app.main:app --host 0.0.0.0 --port 8000 --reload
 
-  # Knowledge Graph database for entity relationships
-  neo4j:
-    image: neo4j:5.15-community
-    container_name: gitam-neo4j
+  frontend:
+    build: ./frontend
+    container_name: gitam-frontend
     ports:
-      - "7474:7474"  # HTTP
-      - "7687:7687"  # Bolt
+      - "3000:3000"
     environment:
-      # TODO: Set strong password for production
-      NEO4J_AUTH: neo4j/password
-      NEO4J_PLUGINS: '["apoc"]'
-      NEO4J_dbms_security_procedures_unrestricted: apoc.*
-      NEO4J_dbms_security_procedures_allowlist: apoc.*
-    # volumes:
-      # TODO: Set up persistent volume for production
-      # - neo4j_data:/data
-      # - neo4j_logs:/logs
-    networks:
-      - gitam-network
+      - NEXT_PUBLIC_API_URL=http://localhost:8000
+    depends_on:
+      - backend
     restart: unless-stopped
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    command: npm run dev
 
-  # PostgreSQL for metadata, audit logs, and structured data
-  postgres:
-    image: postgres:15-alpine
-    container_name: gitam-postgres
-    ports:
-      - "5432:5432"
-    environment:
-      # TODO: Set strong passwords for production
-      POSTGRES_DB: gitam_policy
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: password
-    # volumes:
-      # TODO: Set up persistent volume for production
-      # - postgres_data:/var/lib/postgresql/data
-      # - ./backend/backend_app/sql/init.sql:/docker-entrypoint-initdb.d/init.sql
-    networks:
-      - gitam-network
-    restart: unless-stopped
-
-  # Redis for caching and session management (optional)
-  redis:
-    image: redis:7-alpine
-    container_name: gitam-redis
-    ports:
-      - "6379:6379"
-    # volumes:
-      # TODO: Set up persistent volume for production
-      # - redis_data:/data
-    networks:
-      - gitam-network
-    restart: unless-stopped
-
-  # Monitoring and observability (optional)
-  prometheus:
-    image: prom/prometheus:latest
-    container_name: gitam-prometheus
-    ports:
-      - "9090:9090"
-    # volumes:
-      # TODO: Configure prometheus.yml for production
-      # - ./infra/prometheus.yml:/etc/prometheus/prometheus.yml
-    networks:
-      - gitam-network
-    restart: unless-stopped
-    profiles:
-      - monitoring
-
-  grafana:
-    image: grafana/grafana:latest
-    container_name: gitam-grafana
-    ports:
-      - "3001:3000"
-    environment:
-      # TODO: Set strong passwords for production
-      GF_SECURITY_ADMIN_PASSWORD: admin
-    # volumes:
-      # TODO: Set up persistent volume for production
-      # - grafana_data:/var/lib/grafana
-    networks:
-      - gitam-network
-    restart: unless-stopped
-    profiles:
-      - monitoring
-
-# TODO: Uncomment and configure for production
-# volumes:
-#   qdrant_data:
-#   elasticsearch_data:
-#   neo4j_data:
-#   neo4j_logs:
-#   postgres_data:
-#   redis_data:
-#   grafana_data:
-
-networks:
-  gitam-network:
-    driver: bridge
-    name: gitam-network
-
-# TODO: Add health checks for production
-# healthcheck:
-#   test: ["CMD", "curl", "-f", "http://localhost:6333/health"]
-#   interval: 30s
-#   timeout: 10s
-#   retries: 3
-#   start_period: 40s
+volumes:
+  chromadb_data:

@@ -62,16 +62,45 @@ async def root():
 @app.get("/health")
 async def health_check():
     """Health check endpoint for monitoring"""
-    return {
-        "status": "healthy",
-        "services": {
-            "api": "running",
-            "vector_db": "not_connected",  # TODO: Check Qdrant connection
-            "search_engine": "not_connected",  # TODO: Check Elasticsearch connection
-            "knowledge_graph": "not_connected",  # TODO: Check Neo4j connection
-            "llm_service": "not_connected",  # TODO: Check LLM service connection
+    from backend_app.services.chromadb_service import ChromaDBService
+    from backend_app.services.ollama_service import OllamaService
+    
+    try:
+        # Check ChromaDB health
+        chromadb_service = ChromaDBService()
+        chromadb_health = await chromadb_service.health_check()
+        
+        # Check Ollama health
+        ollama_service = OllamaService()
+        ollama_health = await ollama_service.health_check()
+        
+        return {
+            "status": "healthy",
+            "services": {
+                "api": "running",
+                "vector_db": "connected" if chromadb_health.get('chromadb', {}).get('status') == 'connected' else "not_connected",
+                "llm_service": "connected" if ollama_health.get('ollama', {}).get('status') == 'connected' else "not_connected",
+                "search_engine": "not_connected",  # TODO: Implement search engine
+                "knowledge_graph": "not_connected",  # TODO: Implement knowledge graph
+            },
+            "details": {
+                "chromadb": chromadb_health,
+                "ollama": ollama_health
+            }
         }
-    }
+    except Exception as e:
+        logger.error(f"Health check failed: {e}")
+        return {
+            "status": "degraded",
+            "services": {
+                "api": "running",
+                "vector_db": "error",
+                "llm_service": "error",
+                "search_engine": "not_connected",
+                "knowledge_graph": "not_connected",
+            },
+            "error": str(e)
+        }
 
 @app.exception_handler(Exception)
 async def global_exception_handler(request, exc):

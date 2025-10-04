@@ -15,6 +15,7 @@ class QueryRequest(BaseModel):
     """Request model for query endpoint"""
     query: str = Field(..., description="User query about education policies", min_length=1, max_length=1000)
     simulate_failure: Optional[bool] = Field(False, description="Simulate error response for testing")
+    model: Optional[str] = Field("deepseek-r1:7b", description="AI model to use for response generation")
 
 class DocumentRequest(BaseModel):
     """Request model for document ingestion"""

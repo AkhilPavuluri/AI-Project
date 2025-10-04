@@ -1,14 +1,8 @@
 """
 Retrieval Service for GITAM Education Policy AI
 
-This service handles document retrieval using both dense and sparse methods.
-Currently returns placeholder data until vector database and search engine are integrated.
-
-TODO: Integration Points:
-1. Qdrant vector database for dense retrieval
-2. Elasticsearch for sparse keyword search
-3. Embedding model for query and document vectors
-4. Hybrid ranking algorithm combining dense and sparse results
+This service handles document retrieval using ChromaDB for vector similarity search.
+Now integrated with ChromaDBService for actual vector database functionality.
 """
 
 import logging
@@ -16,24 +10,18 @@ from typing import List, Dict, Any
 import asyncio
 import os
 from datetime import datetime
+from backend_app.services.chromadb_service import ChromaDBService
 
 logger = logging.getLogger(__name__)
 
 class RetrievalService:
-    """Service for document retrieval using dense and sparse methods"""
+    """Service for document retrieval using ChromaDB vector database"""
     
     def __init__(self):
-        """Initialize retrieval service with placeholder configuration"""
-        self.qdrant_url = os.getenv("QDRANT_URL", "http://localhost:6333")
-        self.elasticsearch_url = os.getenv("ELASTICSEARCH_URL", "http://localhost:9200")
-        self.embedding_model = os.getenv("EMBEDDING_MODEL", "sentence-transformers/all-MiniLM-L6-v2")
+        """Initialize retrieval service with ChromaDB integration"""
+        self.chromadb_service = ChromaDBService()
         
-        # TODO: Initialize actual clients
-        # self.qdrant_client = None  # qdrant_client.QdrantClient(url=self.qdrant_url)
-        # self.elasticsearch_client = None  # Elasticsearch([self.elasticsearch_url])
-        # self.embedding_client = None  # SentenceTransformer(self.embedding_model)
-        
-        logger.info("RetrievalService initialized with placeholder configuration")
+        logger.info("RetrievalService initialized with ChromaDB integration")
     
     async def detect_language(self, query: str) -> str:
         """
@@ -60,32 +48,30 @@ class RetrievalService:
     
     async def dense_retrieval(self, query: str, top_k: int = 10) -> List[str]:
         """
-        Perform dense retrieval using vector similarity search.
+        Perform dense retrieval using ChromaDB vector similarity search.
         
-        TODO: Implement actual dense retrieval:
-        1. Generate query embedding using embedding model
-        2. Search Qdrant vector database for similar documents
-        3. Apply hybrid ranking with sparse results
-        4. Return ranked document IDs and scores
+        Args:
+            query: Search query text
+            top_k: Number of results to return
+            
+        Returns:
+            List of document IDs
         """
         logger.info(f"Performing dense retrieval for query: {query[:50]}...")
         
-        # Placeholder implementation
-        await asyncio.sleep(0.2)  # Simulate processing time
-        
-        # TODO: Actual implementation would be:
-        # 1. query_embedding = self.embedding_client.encode(query)
-        # 2. results = self.qdrant_client.search(
-        #     collection_name="policy_documents",
-        #     query_vector=query_embedding,
-        #     limit=top_k
-        # )
-        # 3. return [result.id for result in results]
-        
-        dense_candidates = []  # Placeholder: no candidates found
-        
-        logger.info(f"Dense retrieval found {len(dense_candidates)} candidates")
-        return dense_candidates
+        try:
+            # Search ChromaDB for similar documents
+            results = await self.chromadb_service.search_similar(query, top_k)
+            
+            # Extract document IDs
+            doc_ids = [doc['id'] for doc in results]
+            
+            logger.info(f"Dense retrieval found {len(doc_ids)} candidates")
+            return doc_ids
+            
+        except Exception as e:
+            logger.error(f"Error in dense retrieval: {e}")
+            return []
     
     async def sparse_retrieval(self, query: str, top_k: int = 10) -> List[str]:
         """

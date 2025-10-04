@@ -1,5 +1,5 @@
-import { useState } from "react"
-import { ChevronDown, Bot, MoreHorizontal, Settings, HelpCircle, Search, Download, Share, Archive } from "lucide-react"
+import { useState, useEffect } from "react"
+import { ChevronDown, Bot, MoreHorizontal, Settings, HelpCircle, Search, Download, Share, Archive, Cloud, Server, Wifi, WifiOff } from "lucide-react"
 import { Separator } from "@/components/ui/separator"
 import { SidebarTrigger } from "@/components/ui/sidebar"
 import {
@@ -8,24 +8,45 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
   DropdownMenuSeparator,
+  DropdownMenuLabel,
 } from "@/components/ui/dropdown-menu"
 import { Button } from "@/components/ui/button"
+import { AIModel, OllamaModel, CloudModel } from "@/lib/models"
+import { modelService } from "@/lib/modelService"
 
 interface SiteHeaderProps {
   selectedModel?: string
   onModelChange?: (model: string) => void
 }
 
-const models = [
-  { id: "gpt-4", name: "GPT-4", description: "Most capable model" },
-  { id: "gpt-4-turbo", name: "GPT-4 Turbo", description: "Faster GPT-4" },
-  { id: "gpt-3.5-turbo", name: "GPT-3.5 Turbo", description: "Fast and efficient" },
-  { id: "claude-3-opus", name: "Claude 3 Opus", description: "Anthropic's most capable" },
-  { id: "claude-3-sonnet", name: "Claude 3 Sonnet", description: "Balanced performance" },
-]
+export function SiteHeader({ selectedModel = "gemini-2.5-flash", onModelChange }: SiteHeaderProps) {
+  const [models, setModels] = useState<AIModel[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [isOllamaConnected, setIsOllamaConnected] = useState(false)
 
-export function SiteHeader({ selectedModel = "gpt-4", onModelChange }: SiteHeaderProps) {
-  const currentModel = models.find(model => model.id === selectedModel) || models[0]
+  useEffect(() => {
+    const loadModels = async () => {
+      setIsLoading(true)
+      try {
+        const [allModels, ollamaConnected] = await Promise.all([
+          modelService.getAllModels(),
+          modelService.checkOllamaConnection()
+        ])
+        setModels(allModels)
+        setIsOllamaConnected(ollamaConnected)
+      } catch (error) {
+        console.error('Error loading models:', error)
+        // Fallback to cloud models only
+        setModels(modelService.getCloudModels())
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    loadModels()
+  }, [])
+
+  const currentModel = models.find(model => model.id === selectedModel) || models.find(model => model.isAvailable) || models[0]
 
   return (
     <header className="group-has-data-[collapsible=icon]/sidebar-wrapper:h-12 flex h-12 shrink-0 items-center gap-2 transition-[width,height] ease-linear">
@@ -43,24 +64,86 @@ export function SiteHeader({ selectedModel = "gpt-4", onModelChange }: SiteHeade
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" className="h-8 px-2 gap-2">
                 <Bot className="h-4 w-4" />
-                <span className="text-sm font-medium">{currentModel.name}</span>
+                <span className="text-sm font-medium">
+                  {isLoading ? 'Loading...' : currentModel?.name || 'Select Model'}
+                </span>
                 <ChevronDown className="h-3 w-3" />
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="start" className="w-64 premium-scrollbar">
-              {models.map((model) => (
-                <DropdownMenuItem
-                  key={model.id}
-                  onClick={() => onModelChange?.(model.id)}
-                  className="flex flex-col items-start gap-1 p-3"
-                >
-                  <div className="flex items-center gap-2">
-                    <Bot className="h-4 w-4" />
-                    <span className="font-medium">{model.name}</span>
-                  </div>
-                  <span className="text-xs text-muted-foreground">{model.description}</span>
-                </DropdownMenuItem>
-              ))}
+            <DropdownMenuContent align="start" className="w-80 premium-scrollbar max-h-96">
+              {/* Ollama Models Section */}
+              <DropdownMenuLabel className="flex items-center gap-2 px-3 py-2">
+                <Server className="h-4 w-4" />
+                <span>Local Models (Ollama)</span>
+                {isOllamaConnected ? (
+                  <Wifi className="h-3 w-3 text-green-500" />
+                ) : (
+                  <WifiOff className="h-3 w-3 text-red-500" />
+                )}
+              </DropdownMenuLabel>
+              {models
+                .filter((model): model is OllamaModel => model.category === 'ollama')
+                .map((model) => (
+                  <DropdownMenuItem
+                    key={model.id}
+                    onClick={() => onModelChange?.(model.id)}
+                    className="flex flex-col items-start gap-1 p-3"
+                  >
+                    <div className="flex items-center gap-2 w-full">
+                      <Server className="h-4 w-4" />
+                      <span className="font-medium">{model.name}</span>
+                      <span className="text-xs text-green-600 bg-green-100 px-2 py-0.5 rounded">
+                        Downloaded
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                      <span>{model.description}</span>
+                      {model.size && <span>• {model.size}</span>}
+                    </div>
+                  </DropdownMenuItem>
+                ))}
+
+              {/* Cloud Models Section - Only show if any are available */}
+              {models.filter(model => model.category === 'cloud').length > 0 && (
+                <>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuLabel className="flex items-center gap-2 px-3 py-2">
+                    <Cloud className="h-4 w-4" />
+                    <span>Cloud Models</span>
+                  </DropdownMenuLabel>
+                  {models
+                    .filter((model): model is CloudModel => model.category === 'cloud')
+                    .map((model) => (
+                      <DropdownMenuItem
+                        key={model.id}
+                        onClick={() => onModelChange?.(model.id)}
+                        className="flex flex-col items-start gap-1 p-3"
+                      >
+                        <div className="flex items-center gap-2 w-full">
+                          <Cloud className="h-4 w-4" />
+                          <span className="font-medium">{model.name}</span>
+                          <span className="text-xs text-blue-600 bg-blue-100 px-2 py-0.5 rounded">
+                            Available
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                          <span>{model.description}</span>
+                          {model.pricing && <span>• {model.pricing.input}</span>}
+                        </div>
+                      </DropdownMenuItem>
+                    ))}
+                </>
+              )}
+
+              {/* No models available message */}
+              {models.length === 0 && !isLoading && (
+                <div className="px-3 py-4 text-center text-sm text-muted-foreground">
+                  <p>No models available</p>
+                  <p className="text-xs mt-1">
+                    Configure API keys in Settings or download Ollama models
+                  </p>
+                </div>
+              )}
             </DropdownMenuContent>
           </DropdownMenu>
         </div>

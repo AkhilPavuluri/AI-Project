@@ -75,11 +75,9 @@ async def query_policies(request: QueryRequest) -> QueryResponse:
         # 3. Knowledge graph traversal
         kg_result = await kg_service.traverse_graph(request.query)
         
-        # 4. LLM controller processing
-        controller_iterations = await llm_controller.process_query(request.query)
-        
-        # 5. Generate response (placeholder)
-        answer = "N/A - model not connected"
+        # 4. LLM controller processing with selected model
+        model = request.model or "deepseek-r1:7b"
+        answer = await llm_controller.process_query(request.query, model)
         
         # 6. Extract citations (placeholder)
         citations = []
@@ -95,7 +93,7 @@ async def query_policies(request: QueryRequest) -> QueryResponse:
                 sparse=sparse_results
             ),
             kg_traversal=kg_result,
-            controller_iterations=controller_iterations
+            controller_iterations=1  # Single iteration for now
         )
         
         response = QueryResponse(

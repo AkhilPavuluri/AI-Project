@@ -4,15 +4,7 @@ LLM Controller Service for GITAM Education Policy AI
 This service manages LLM interactions and response generation with iterative
 refinement and quality assurance mechanisms.
 
-Currently returns placeholder data until LLM integration is complete.
-
-TODO: Integration Points:
-1. OpenAI API or self-hosted LLaMA for response generation
-2. LangChain for prompt management and chain orchestration
-3. Iterative refinement with human feedback
-4. Response validation and quality scoring
-5. Citation extraction and verification
-6. Risk assessment and compliance checking
+Now integrated with OllamaService for actual LLM functionality.
 """
 
 import logging
@@ -20,6 +12,7 @@ from typing import List, Dict, Any, Optional
 import asyncio
 import os
 from datetime import datetime
+from backend_app.services.ollama_service import OllamaService
 
 logger = logging.getLogger(__name__)
 
@@ -27,54 +20,45 @@ class LLMController:
     """Service for LLM interaction and response generation"""
     
     def __init__(self):
-        """Initialize LLM controller with placeholder configuration"""
-        self.openai_api_key = os.getenv("OPENAI_API_KEY")
-        self.llm_model = os.getenv("LLM_MODEL", "gpt-4")
+        """Initialize LLM controller with Ollama service integration"""
+        self.ollama_service = OllamaService()
         self.max_iterations = int(os.getenv("MAX_ITERATIONS", "3"))
         self.temperature = float(os.getenv("TEMPERATURE", "0.1"))
         
-        # TODO: Initialize actual LLM clients
-        # self.openai_client = None  # openai.OpenAI(api_key=self.openai_api_key)
-        # self.langchain_llm = None  # ChatOpenAI(model=self.llm_model, temperature=self.temperature)
-        
-        # TODO: Initialize prompt templates
-        # self.query_prompt_template = self.load_prompt_template("query_generation")
-        # self.refinement_prompt_template = self.load_prompt_template("response_refinement")
-        # self.citation_prompt_template = self.load_prompt_template("citation_extraction")
-        
-        logger.info("LLMController initialized with placeholder configuration")
+        logger.info("LLMController initialized with Ollama service integration")
     
-    async def process_query(self, query: str, context: Optional[Dict[str, Any]] = None) -> int:
+    async def process_query(self, query: str, model: str = "deepseek-r1:7b", context: Optional[Dict[str, Any]] = None) -> str:
         """
         Process user query through LLM controller with iterative refinement.
         
-        TODO: Implement actual LLM processing:
-        1. Generate initial response using retrieved context
-        2. Apply iterative refinement based on quality metrics
-        3. Extract and validate citations
-        4. Perform risk assessment
-        5. Return final response with confidence score
+        Args:
+            query: User query
+            model: Model to use for generation
+            context: Optional context for the query
+            
+        Returns:
+            Generated response
         """
         logger.info(f"Processing query through LLM controller: {query[:50]}...")
         
-        # Placeholder implementation
-        await asyncio.sleep(0.5)  # Simulate processing time
-        
-        # TODO: Actual implementation would be:
-        # 1. initial_response = await self.generate_initial_response(query, context)
-        # 2. iterations = 0
-        # 3. while iterations < self.max_iterations:
-        # 4.     quality_score = await self.assess_response_quality(initial_response)
-        # 5.     if quality_score > 0.8:
-        # 6.         break
-        # 7.     initial_response = await self.refine_response(initial_response, query)
-        # 8.     iterations += 1
-        # 9. return iterations
-        
-        controller_iterations = 0  # Placeholder: no iterations performed
-        
-        logger.info(f"LLM controller completed with {controller_iterations} iterations")
-        return controller_iterations
+        try:
+            # Generate initial response using Ollama service
+            response = await self.ollama_service.generate_response(
+                query=query,
+                model=model,
+                context=context.get('retrieved_content', '') if context else None,
+                temperature=self.temperature,
+                max_tokens=1000
+            )
+            
+            answer = response.get("answer", "N/A - model not connected")
+            
+            logger.info(f"LLM controller completed successfully")
+            return answer
+            
+        except Exception as e:
+            logger.error(f"Error in LLM controller: {e}")
+            return f"I apologize, but I encountered an error while processing your query: {str(e)}"
     
     async def generate_initial_response(self, query: str, context: Dict[str, Any]) -> str:
         """

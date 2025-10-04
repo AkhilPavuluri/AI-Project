@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -17,7 +17,8 @@ import { Textarea } from '@/components/ui/textarea'
 import { Switch } from '@/components/ui/switch'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Separator } from '@/components/ui/separator'
-import { Settings, Save, X } from 'lucide-react'
+import { Settings, Save, X, Eye, EyeOff, Key, Cloud, Server } from 'lucide-react'
+import { CLOUD_MODELS } from '@/lib/models'
 
 interface SettingsDialogProps {
   children: React.ReactNode
@@ -25,6 +26,7 @@ interface SettingsDialogProps {
 
 export function SettingsDialog({ children }: SettingsDialogProps) {
   const [open, setOpen] = useState(false)
+  const [showApiKeys, setShowApiKeys] = useState<Record<string, boolean>>({})
   const [settings, setSettings] = useState({
     // General Settings
     theme: 'dark',
@@ -35,7 +37,7 @@ export function SettingsDialog({ children }: SettingsDialogProps) {
     // Chat Settings
     maxTokens: '4000',
     temperature: '0.7',
-    model: 'gpt-4',
+    model: 'gemini-2.5-flash',
     systemPrompt: 'You are a helpful AI assistant.',
     
     // Privacy Settings
@@ -46,11 +48,48 @@ export function SettingsDialog({ children }: SettingsDialogProps) {
     apiEndpoint: 'https://api.openai.com/v1',
     timeout: '30',
     retryAttempts: '3',
+    
+    // Cloud API Keys
+    geminiApiKey: '',
+    openaiApiKey: '',
+    anthropicApiKey: '',
+    
+    // Ollama Settings
+    ollamaUrl: 'http://localhost:11434',
   })
 
+  useEffect(() => {
+    // Load settings from localStorage on mount
+    const savedSettings = localStorage.getItem('app-settings')
+    if (savedSettings) {
+      try {
+        const parsed = JSON.parse(savedSettings)
+        setSettings(prev => ({ ...prev, ...parsed }))
+      } catch (error) {
+        console.error('Error loading settings:', error)
+      }
+    }
+  }, [])
+
   const handleSave = () => {
-    // Here you would typically save settings to localStorage or send to backend
-    console.log('Saving settings:', settings)
+    // Save settings to localStorage
+    localStorage.setItem('app-settings', JSON.stringify(settings))
+    
+    // Update environment variables for API keys (in a real app, you'd send these to backend)
+    if (settings.geminiApiKey) {
+      process.env.NEXT_PUBLIC_GEMINI_API_KEY = settings.geminiApiKey
+    }
+    if (settings.openaiApiKey) {
+      process.env.NEXT_PUBLIC_OPENAI_API_KEY = settings.openaiApiKey
+    }
+    if (settings.anthropicApiKey) {
+      process.env.NEXT_PUBLIC_ANTHROPIC_API_KEY = settings.anthropicApiKey
+    }
+    if (settings.ollamaUrl) {
+      process.env.NEXT_PUBLIC_OLLAMA_URL = settings.ollamaUrl
+    }
+    
+    console.log('Settings saved:', settings)
     setOpen(false)
   }
 
@@ -63,14 +102,28 @@ export function SettingsDialog({ children }: SettingsDialogProps) {
       notifications: true,
       maxTokens: '4000',
       temperature: '0.7',
-      model: 'gpt-4',
+      model: 'gemini-2.5-flash',
       systemPrompt: 'You are a helpful AI assistant.',
       dataCollection: false,
       analytics: false,
       apiEndpoint: 'https://api.openai.com/v1',
       timeout: '30',
       retryAttempts: '3',
+      geminiApiKey: '',
+      openaiApiKey: '',
+      anthropicApiKey: '',
+      ollamaUrl: 'http://localhost:11434',
     })
+  }
+
+  const toggleApiKeyVisibility = (key: string) => {
+    setShowApiKeys(prev => ({ ...prev, [key]: !prev[key] }))
+  }
+
+  const getApiKeyDisplay = (key: string) => {
+    if (!key) return ''
+    if (showApiKeys[key]) return key
+    return '•'.repeat(Math.min(key.length, 20))
   }
 
   return (
@@ -203,6 +256,122 @@ export function SettingsDialog({ children }: SettingsDialogProps) {
                 placeholder="Enter the system prompt for the AI..."
                 rows={3}
               />
+            </div>
+          </div>
+
+          <Separator />
+
+          {/* Cloud API Keys */}
+          <div className="space-y-4">
+            <h3 className="text-lg font-medium flex items-center gap-2">
+              <Cloud className="h-5 w-5" />
+              Cloud API Keys
+            </h3>
+            <p className="text-sm text-muted-foreground">
+              Configure API keys for cloud-based AI models. These keys are stored locally in your browser.
+            </p>
+            
+            {/* Google Gemini */}
+            <div className="space-y-2">
+              <Label htmlFor="geminiApiKey" className="flex items-center gap-2">
+                <Key className="h-4 w-4" />
+                Google Gemini API Key
+              </Label>
+              <div className="flex gap-2">
+                <Input
+                  id="geminiApiKey"
+                  type={showApiKeys.gemini ? 'text' : 'password'}
+                  value={settings.geminiApiKey}
+                  onChange={(e) => setSettings({...settings, geminiApiKey: e.target.value})}
+                  placeholder="Enter your Gemini API key..."
+                />
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={() => toggleApiKeyVisibility('gemini')}
+                >
+                  {showApiKeys.gemini ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </Button>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Get your API key from <a href="https://makersuite.google.com/app/apikey" target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline">Google AI Studio</a>
+              </p>
+            </div>
+
+            {/* OpenAI */}
+            <div className="space-y-2">
+              <Label htmlFor="openaiApiKey" className="flex items-center gap-2">
+                <Key className="h-4 w-4" />
+                OpenAI API Key
+              </Label>
+              <div className="flex gap-2">
+                <Input
+                  id="openaiApiKey"
+                  type={showApiKeys.openai ? 'text' : 'password'}
+                  value={settings.openaiApiKey}
+                  onChange={(e) => setSettings({...settings, openaiApiKey: e.target.value})}
+                  placeholder="Enter your OpenAI API key..."
+                />
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={() => toggleApiKeyVisibility('openai')}
+                >
+                  {showApiKeys.openai ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </Button>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Get your API key from <a href="https://platform.openai.com/api-keys" target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline">OpenAI Platform</a>
+              </p>
+            </div>
+
+            {/* Anthropic */}
+            <div className="space-y-2">
+              <Label htmlFor="anthropicApiKey" className="flex items-center gap-2">
+                <Key className="h-4 w-4" />
+                Anthropic API Key
+              </Label>
+              <div className="flex gap-2">
+                <Input
+                  id="anthropicApiKey"
+                  type={showApiKeys.anthropic ? 'text' : 'password'}
+                  value={settings.anthropicApiKey}
+                  onChange={(e) => setSettings({...settings, anthropicApiKey: e.target.value})}
+                  placeholder="Enter your Anthropic API key..."
+                />
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={() => toggleApiKeyVisibility('anthropic')}
+                >
+                  {showApiKeys.anthropic ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </Button>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Get your API key from <a href="https://console.anthropic.com/" target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline">Anthropic Console</a>
+              </p>
+            </div>
+          </div>
+
+          <Separator />
+
+          {/* Ollama Settings */}
+          <div className="space-y-4">
+            <h3 className="text-lg font-medium flex items-center gap-2">
+              <Server className="h-5 w-5" />
+              Ollama Settings
+            </h3>
+            <div className="space-y-2">
+              <Label htmlFor="ollamaUrl">Ollama Server URL</Label>
+              <Input
+                id="ollamaUrl"
+                value={settings.ollamaUrl}
+                onChange={(e) => setSettings({...settings, ollamaUrl: e.target.value})}
+                placeholder="http://localhost:11434"
+              />
+              <p className="text-xs text-muted-foreground">
+                URL where your Ollama server is running. Default is localhost:11434
+              </p>
             </div>
           </div>
 
