@@ -1,0 +1,89 @@
+# Frontend Installation Instructions
+
+## Prerequisites
+
+- Node.js 18+ and npm
+- Git
+
+## Installation Steps
+
+### 1. Install Dependencies
+
+```bash
+cd frontend
+npm install
+```
+
+### 2. Install shadcn/ui Components
+
+```bash
+# Initialize shadcn/ui
+npx shadcn-ui@latest init
+
+# Add required components
+npx shadcn-ui@latest add button
+npx shadcn-ui@latest add card
+npx shadcn-ui@latest add input
+npx shadcn-ui@latest add collapsible
+```
+
+### 3. Environment Configuration
+
+Create a `.env.local` file in the frontend directory:
+
+```bash
+# .env.local
+NEXT_PUBLIC_API_URL=http://localhost:8000
+```
+
+### 4. Start Development Server
+
+```bash
+npm run dev
+```
+
+The frontend will be available at `http://localhost:3000`
+
+## Available Scripts
+
+- `npm run dev` - Start development server
+- `npm run build` - Build for production
+- `npm run start` - Start production server
+- `npm run lint` - Run ESLint
+- `npm run format` - Format code with Prettier
+- `npm run type-check` - Run TypeScript type checking
+
+## Project Structure
+
+```
+frontend/
+├── app/                    # Next.js app router
+│   ├── chat/             # Chat page and components
+│   ├── globals.css       # Global styles
+│   ├── layout.tsx        # Root layout
+│   └── page.tsx          # Home page
+├── components/           # Reusable components
+│   ├── ui/               # shadcn/ui components
+│   ├── ChatMessage.tsx   # Chat message component
+│   └── DeveloperControls.tsx
+├── lib/                  # Utilities and API
+│   ├── api.ts           # Backend API functions
+│   └── utils.ts         # Utility functions
+└── package.json         # Dependencies and scripts
+```
+
+## Troubleshooting
+
+### Common Issues
+
+1. **shadcn/ui not found**: Make sure to run `npx shadcn-ui@latest init` first
+2. **TypeScript errors**: Run `npm run type-check` to see detailed errors
+3. **Styling issues**: Ensure Tailwind CSS is properly configured
+4. **API connection**: Verify backend is running on port 8000
+
+### Development Tips
+
+- Use the Developer Debug panel to see API responses
+- Check browser console for errors
+- Use React DevTools for component debugging
+- Hot reloading is enabled for development

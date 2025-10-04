@@ -1,0 +1,191 @@
+# Backend Installation Instructions
+
+## Prerequisites
+
+- Python 3.11+
+- pip or poetry
+- Virtual environment tool (venv, conda, etc.)
+
+## Installation Steps
+
+### 1. Create Virtual Environment
+
+```bash
+cd backend
+python -m venv venv
+
+# Activate virtual environment
+# On Windows:
+venv\Scripts\activate
+# On macOS/Linux:
+source venv/bin/activate
+```
+
+### 2. Install Dependencies
+
+```bash
+# Install the package in development mode
+pip install -e .
+
+# Or install with development dependencies
+pip install -e ".[dev]"
+```
+
+### 3. Environment Configuration
+
+Create a `.env` file in the backend directory:
+
+```bash
+# .env
+# Database URLs
+QDRANT_URL=http://localhost:6333
+ELASTICSEARCH_URL=http://localhost:9200
+NEO4J_URL=bolt://localhost:7687
+NEO4J_USER=neo4j
+NEO4J_PASSWORD=password
+POSTGRES_URL=postgresql://postgres:password@localhost:5432/gitam_policy
+
+# LLM Configuration
+OPENAI_API_KEY=your_openai_api_key_here
+LLM_MODEL=gpt-4
+TEMPERATURE=0.1
+MAX_ITERATIONS=3
+
+# Embedding Model
+EMBEDDING_MODEL=sentence-transformers/all-MiniLM-L6-v2
+
+# Application Settings
+ENVIRONMENT=development
+LOG_LEVEL=INFO
+```
+
+### 4. Start Development Server
+
+```bash
+# Using the script defined in pyproject.toml
+start-dev
+
+# Or directly with uvicorn
+uvicorn backend_app.main:app --reload --host 0.0.0.0 --port 8000
+```
+
+The backend will be available at `http://localhost:8000`
+
+## Available Scripts
+
+- `start-dev` - Start development server with hot reload
+- `start-prod` - Start production server
+- `python -m pytest` - Run tests
+- `black .` - Format code with Black
+- `isort .` - Sort imports with isort
+- `flake8 .` - Lint code with flake8
+- `mypy .` - Type check with mypy
+
+## Project Structure
+
+```
+backend/
+├── backend_app/           # Main application package
+│   ├── main.py           # FastAPI app initialization
+│   ├── api/              # API routes and schemas
+│   │   ├── v1.py         # API v1 endpoints
+│   │   └── schemas.py    # Pydantic models
+│   └── services/         # Business logic services
+│       ├── retrieval.py  # Document retrieval service
+│       ├── kg.py         # Knowledge graph service
+│       └── controller.py # LLM controller service
+├── tests/                # Test files
+├── pyproject.toml        # Project configuration
+└── Dockerfile           # Container configuration
+```
+
+## Integration Points
+
+### Vector Database (Qdrant)
+```python
+# TODO: Uncomment in pyproject.toml
+# "qdrant-client>=1.7.0"
+
+# TODO: Initialize in retrieval.py
+# from qdrant_client import QdrantClient
+# self.qdrant_client = QdrantClient(url=self.qdrant_url)
+```
+
+### Search Engine (Elasticsearch)
+```python
+# TODO: Uncomment in pyproject.toml
+# "elasticsearch>=8.11.0"
+
+# TODO: Initialize in retrieval.py
+# from elasticsearch import Elasticsearch
+# self.elasticsearch_client = Elasticsearch([self.elasticsearch_url])
+```
+
+### Knowledge Graph (Neo4j)
+```python
+# TODO: Uncomment in pyproject.toml
+# "neo4j>=5.15.0"
+
+# TODO: Initialize in kg.py
+# from neo4j import GraphDatabase
+# self.driver = GraphDatabase.driver(self.neo4j_url, auth=(user, password))
+```
+
+### LLM Integration (OpenAI)
+```python
+# TODO: Uncomment in pyproject.toml
+# "openai>=1.3.0"
+
+# TODO: Initialize in controller.py
+# import openai
+# self.openai_client = openai.OpenAI(api_key=self.openai_api_key)
+```
+
+## Testing
+
+```bash
+# Run all tests
+python -m pytest
+
+# Run tests with coverage
+python -m pytest --cov=backend_app
+
+# Run specific test file
+python -m pytest tests/test_api.py
+
+# Run tests with verbose output
+python -m pytest -v
+```
+
+## Development Workflow
+
+1. Make code changes
+2. Run type checking: `mypy .`
+3. Format code: `black . && isort .`
+4. Run linting: `flake8 .`
+5. Run tests: `python -m pytest`
+6. Start server: `start-dev`
+
+## Troubleshooting
+
+### Common Issues
+
+1. **Import errors**: Ensure virtual environment is activated
+2. **Port conflicts**: Check if port 8000 is available
+3. **Environment variables**: Verify `.env` file is properly configured
+4. **Dependencies**: Run `pip install -e .` to reinstall
+
+### API Testing
+
+```bash
+# Test query endpoint
+curl -X POST "http://localhost:8000/v1/query" \
+  -H "Content-Type: application/json" \
+  -d '{"query": "What is the admission policy?"}'
+
+# Test health endpoint
+curl http://localhost:8000/health
+
+# View API documentation
+open http://localhost:8000/docs
+```
