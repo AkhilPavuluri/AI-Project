@@ -5,6 +5,7 @@ import { AppSidebar } from "@/components/app-sidebar"
 import { SiteHeader } from "@/components/site-header"
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar"
 import { ChatBot } from './ChatBot'
+import { PolicyCrafter } from './PolicyCrafter'
 import { modelService } from '@/lib/modelService'
 
 interface ChatHistoryItem {
@@ -20,6 +21,7 @@ export default function ChatPage() {
   const [chatHistory, setChatHistory] = useState<ChatHistoryItem[]>([])
   const [activeChatId, setActiveChatId] = useState<string | undefined>()
   const [selectedModel, setSelectedModel] = useState<string>("")
+  const [currentInterface, setCurrentInterface] = useState<'chat' | 'policy-crafter'>('chat')
 
   // Load available models and set default
   useEffect(() => {
@@ -92,6 +94,20 @@ export default function ChatPage() {
     setSelectedModel(modelId)
   }
 
+  const handlePolicyCrafterClick = () => {
+    setCurrentInterface('policy-crafter')
+  }
+
+  const handleReturnToChat = () => {
+    setCurrentInterface('chat')
+  }
+
+  // If Policy Crafter is active, render it as full-screen without any other UI
+  if (currentInterface === 'policy-crafter') {
+    return <PolicyCrafter onReturnToChat={handleReturnToChat} />
+  }
+
+  // Otherwise render the normal chat interface with sidebar and header
   return (
     <SidebarProvider>
       <AppSidebar 
@@ -110,6 +126,7 @@ export default function ChatPage() {
         <SiteHeader 
           selectedModel={selectedModel}
           onModelChange={handleModelChange}
+          onPolicyCrafterClick={handlePolicyCrafterClick}
         />
         
         <div className="flex-1 flex flex-col min-h-0">

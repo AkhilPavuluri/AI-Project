@@ -19,9 +19,10 @@ import { SettingsDialog } from "@/components/SettingsDialog"
 interface SiteHeaderProps {
   selectedModel?: string
   onModelChange?: (model: string) => void
+  onPolicyCrafterClick?: () => void
 }
 
-export function SiteHeader({ selectedModel = "gemini-2.5-flash", onModelChange }: SiteHeaderProps) {
+export function SiteHeader({ selectedModel = "gemini-2.5-flash", onModelChange, onPolicyCrafterClick }: SiteHeaderProps) {
   const [models, setModels] = useState<AIModel[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [isOllamaConnected, setIsOllamaConnected] = useState(false)
@@ -195,7 +196,12 @@ export function SiteHeader({ selectedModel = "gemini-2.5-flash", onModelChange }
 
         {/* Right side - Policy Crafter pill, Theme toggle, and 3-dot menu */}
         <div className="flex items-center gap-2">
-          <Button variant="ghost" size="sm" className="h-8 px-3 gap-2">
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            className="h-8 px-3 gap-2 hover:bg-primary/10 transition-colors"
+            onClick={onPolicyCrafterClick}
+          >
             <div className="bg-primary text-primary-foreground text-xs font-semibold px-2 py-0.5 rounded-full">
               Alpha
             </div>
