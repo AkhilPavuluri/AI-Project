@@ -59,6 +59,26 @@ module.exports = {
   				'accent-foreground': 'hsl(var(--sidebar-accent-foreground))',
   				border: 'hsl(var(--sidebar-border))',
   				ring: 'hsl(var(--sidebar-ring))'
+  			},
+  			success: {
+  				DEFAULT: 'hsl(var(--success))',
+  				foreground: 'hsl(var(--success-foreground))'
+  			},
+  			warning: {
+  				DEFAULT: 'hsl(var(--warning))',
+  				foreground: 'hsl(var(--warning-foreground))'
+  			},
+  			info: {
+  				DEFAULT: 'hsl(var(--info))',
+  				foreground: 'hsl(var(--info-foreground))'
+  			},
+  			gradient: {
+  				from: 'hsl(var(--gradient-from))',
+  				to: 'hsl(var(--gradient-to))'
+  			},
+  			glass: {
+  				background: 'hsl(var(--glass-background))',
+  				border: 'hsl(var(--glass-border))'
   			}
   		},
   		borderRadius: {

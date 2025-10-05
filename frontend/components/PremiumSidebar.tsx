@@ -162,12 +162,12 @@ export function PremiumSidebar({
         <div className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-800 cursor-pointer transition-colors">
           <Avatar className="w-8 h-8 bg-blue-600">
             <AvatarFallback className="text-white text-sm font-medium bg-blue-600">
-              AP
+              N
             </AvatarFallback>
           </Avatar>
           <div className="flex-1 min-w-0">
             <div className="text-sm font-medium text-white truncate">
-              AKHIL PAVULURI
+              nithin
             </div>
             <div className="text-xs text-gray-500">
               Free Plan

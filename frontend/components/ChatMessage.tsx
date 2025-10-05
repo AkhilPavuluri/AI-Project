@@ -1,8 +1,10 @@
 'use client'
 
-import { User, Bot, AlertCircle } from 'lucide-react'
+import { useState } from 'react'
+import { User, Bot, AlertCircle, ChevronDown, ChevronRight, Brain } from 'lucide-react'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
 
 interface Message {
   id: string
@@ -27,6 +29,22 @@ function formatTime(date: Date): string {
 }
 
 export function ChatMessage({ message }: ChatMessageProps) {
+  const [isThinkingOpen, setIsThinkingOpen] = useState(false)
+
+  // Extract thinking content from message
+  const extractThinkingContent = (content: string) => {
+    const thinkMatch = content.match(/<think>([\s\S]*?)<\/think>/i)
+    return thinkMatch ? thinkMatch[1].trim() : null
+  }
+
+  // Clean message content by removing think tags
+  const cleanMessageContent = (content: string) => {
+    return content.replace(/<think>[\s\S]*?<\/think>/gi, '').trim()
+  }
+
+  const thinkingContent = extractThinkingContent(message.content)
+  const cleanContent = cleanMessageContent(message.content)
+
   const getAvatarIcon = () => {
     switch (message.role) {
       case 'user':
@@ -87,7 +105,7 @@ export function ChatMessage({ message }: ChatMessageProps) {
               : 'bg-muted text-foreground border border-border'
         }`}>
           <div className="whitespace-pre-wrap break-words">
-            {message.content}
+            {cleanContent}
           </div>
           
           {/* Show placeholder warning for assistant messages */}
@@ -97,6 +115,112 @@ export function ChatMessage({ message }: ChatMessageProps) {
                 ⚠️ Placeholder Data
               </Badge>
               <p className="mt-1">System not yet connected to vector databases or LLM services.</p>
+            </div>
+          )}
+
+          {/* Thinking Section for Assistant Messages */}
+          {message.role === 'assistant' && (message.response?.processing_trace || thinkingContent) && (
+            <div className="mt-3">
+              <Collapsible open={isThinkingOpen} onOpenChange={setIsThinkingOpen}>
+                <CollapsibleTrigger className="flex items-center gap-2 text-xs text-muted-foreground hover:text-foreground transition-colors">
+                  {isThinkingOpen ? (
+                    <ChevronDown className="h-3 w-3" />
+                  ) : (
+                    <ChevronRight className="h-3 w-3" />
+                  )}
+                  <Brain className="h-3 w-3" />
+                  <span>Thinking process</span>
+                </CollapsibleTrigger>
+                <CollapsibleContent className="mt-2">
+                  <div className="bg-muted/50 border border-border/50 rounded-lg p-3 text-xs space-y-2">
+                    {/* Show extracted thinking content */}
+                    {thinkingContent && (
+                      <div>
+                        <span className="font-medium text-foreground">Reasoning:</span>
+                        <div className="ml-2 mt-1 text-xs text-muted-foreground whitespace-pre-wrap">
+                          {thinkingContent}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Show processing trace data */}
+                    {message.response?.processing_trace && (
+                      <>
+                        {message.response.processing_trace.language && (
+                          <div>
+                            <span className="font-medium text-foreground">Language:</span>
+                            <span className="ml-2 text-muted-foreground">{message.response.processing_trace.language}</span>
+                          </div>
+                        )}
+                        
+                        {message.response.processing_trace.retrieval && (
+                          <div>
+                            <span className="font-medium text-foreground">Retrieval:</span>
+                            <div className="ml-2 mt-1 space-y-1">
+                              {message.response.processing_trace.retrieval.dense && message.response.processing_trace.retrieval.dense.length > 0 && (
+                                <div>
+                                  <span className="text-muted-foreground">Dense:</span>
+                                  <div className="ml-2 text-xs text-muted-foreground">
+                                    {message.response.processing_trace.retrieval.dense.map((item, index) => (
+                                      <div key={index} className="truncate">• {item}</div>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+                              {message.response.processing_trace.retrieval.sparse && message.response.processing_trace.retrieval.sparse.length > 0 && (
+                                <div>
+                                  <span className="text-muted-foreground">Sparse:</span>
+                                  <div className="ml-2 text-xs text-muted-foreground">
+                                    {message.response.processing_trace.retrieval.sparse.map((item, index) => (
+                                      <div key={index} className="truncate">• {item}</div>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        )}
+                        
+                        {message.response.processing_trace.kg_traversal && (
+                          <div>
+                            <span className="font-medium text-foreground">Knowledge Graph:</span>
+                            <div className="ml-2 text-xs text-muted-foreground">
+                              {message.response.processing_trace.kg_traversal}
+                            </div>
+                          </div>
+                        )}
+                        
+                        {message.response.processing_trace.controller_iterations && (
+                          <div>
+                            <span className="font-medium text-foreground">Controller Iterations:</span>
+                            <span className="ml-2 text-muted-foreground">{message.response.processing_trace.controller_iterations}</span>
+                          </div>
+                        )}
+                      </>
+                    )}
+
+                    {Array.isArray(message.response?.citations) && message.response.citations.length > 0 && (
+                      <div>
+                        <span className="font-medium text-foreground">Citations:</span>
+                        <div className="ml-2 mt-1 space-y-1 text-muted-foreground">
+                          {message.response.citations.map((c: any, i: number) => (
+                            <div key={i} className="truncate">• Doc {c.docId} p.{c.page} — {c.span}</div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {message.response?.risk_assessment && (
+                      <div>
+                        <span className="font-medium text-foreground">Risk assessment:</span>
+                        <div className="ml-2 text-xs text-muted-foreground whitespace-pre-wrap">
+                          {message.response.risk_assessment}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </CollapsibleContent>
+              </Collapsible>
             </div>
           )}
         </div>

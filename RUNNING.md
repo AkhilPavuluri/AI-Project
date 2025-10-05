@@ -8,25 +8,17 @@ Ensure you've completed the installation steps in `INSTALL.md`.
 
 ## Starting the System
 
-### 1. Start Infrastructure Services
+### 1. Start ChromaDB Service
 
 ```bash
-# Start all Docker services
-docker-compose up -d
+# Start ChromaDB on port 8001
+docker-compose up -d chromadb
 
-# Check service status
-docker-compose ps
+# Verify ChromaDB is running
+curl http://localhost:8001/api/v2/heartbeat
 ```
 
-Expected output:
-```
-Name                     Command               State           Ports
---------------------------------------------------------------------
-gitam-elasticsearch      /usr/local/bin/docker-entrypoint.sh   Up      0.0.0.0:9200->9200/tcp
-gitam-neo4j             /startup/docker-entrypoint.sh          Up      0.0.0.0:7474->7474/tcp, 0.0.0.0:7687->7687/tcp
-gitam-postgres          docker-entrypoint.sh postgres          Up      0.0.0.0:5432->5432/tcp
-gitam-qdrant            /qdrant/qdrant                         Up      0.0.0.0:6333->6333/tcp
-```
+Expected output: `{"nanosecond heartbeat": <timestamp>}`
 
 ### 2. Start Backend Server
 
@@ -34,7 +26,8 @@ gitam-qdrant            /qdrant/qdrant                         Up      0.0.0.0:6
 cd backend
 
 # Activate virtual environment
-source venv/bin/activate  # On Windows: venv\Scripts\activate
+venv\Scripts\activate  # On Windows
+# source venv/bin/activate  # On Linux/Mac
 
 # Start FastAPI development server
 uvicorn backend_app.main:app --reload --host 0.0.0.0 --port 8000
@@ -53,28 +46,50 @@ npm run dev
 
 Frontend will be available at: `http://localhost:3000`
 
+## Port Configuration
+
+- **Backend**: `8000`
+- **Frontend**: `3000` 
+- **ChromaDB**: `8001`
+
 ## Testing the System
 
 ### 1. Backend API Test
 
 ```bash
-# Test query endpoint
-curl -X POST "http://localhost:8000/v1/query" \
-  -H "Content-Type: application/json" \
-  -d '{"query": "What is the admission policy?"}'
+# Test query endpoint (PowerShell)
+Invoke-RestMethod -Uri "http://localhost:8000/v1/query" -Method POST -ContentType "application/json" -Body '{"query": "test query"}'
 
-# Expected response:
+# Test query endpoint (curl)
+curl -X POST "http://localhost:8000/v1/query" -H "Content-Type: application/json" -d "{\"query\": \"test query\"}"
+```
+
+Expected response:
+```json
 {
-  "answer": "N/A - model not connected",
+  "answer": "I apologize, but I encountered an error while processing your query: ",
   "citations": [],
   "processing_trace": {
     "language": "N/A",
     "retrieval": {"dense": [], "sparse": []},
     "kg_traversal": "N/A",
-    "controller_iterations": 0
+    "controller_iterations": 1
   },
   "risk_assessment": "Coming soon"
 }
+```
+
+### 2. Verify Services
+
+```bash
+# Check if backend is running
+netstat -an | findstr :8000
+
+# Check if ChromaDB is running  
+netstat -an | findstr :8001
+
+# Test ChromaDB health
+curl http://localhost:8001/api/v2/heartbeat
 ```
 
 ### 2. Frontend Interface Test
@@ -132,17 +147,17 @@ curl http://localhost:9200/_cluster/health
 # Stop frontend (Ctrl+C in terminal)
 # Stop backend (Ctrl+C in terminal)
 
-# Stop all Docker services
-docker-compose down
+# Stop ChromaDB service
+docker-compose down chromadb
 ```
 
 ### Complete Reset
 
 ```bash
-# Stop and remove all containers, networks, and volumes
-docker-compose down -v
+# Stop and remove ChromaDB container and volumes
+docker-compose down -v chromadb
 
-# Remove all Docker volumes
+# Remove all Docker volumes (if needed)
 docker volume prune
 ```
 
@@ -151,22 +166,16 @@ docker volume prune
 ### View Service Logs
 
 ```bash
-# All services
-docker-compose logs -f
-
-# Specific service
-docker-compose logs -f qdrant
-docker-compose logs -f elasticsearch
-docker-compose logs -f neo4j
-docker-compose logs -f postgres
+# ChromaDB logs
+docker-compose logs -f chromadb
 ```
 
 ### Backend Logs
 
 Backend logs are displayed in the terminal running `uvicorn`. Look for:
-- API request/response logs
-- Processing trace steps
-- Error messages and stack traces
+- ✅ ChromaDB connection: `HTTP Request: GET http://localhost:8001/api/v2/auth/identity "HTTP/1.1 200 OK"`
+- ✅ Service initialization: `ChromaDB service initialized with collection: gitam_policy_documents`
+- ✅ Server startup: `Application startup complete`
 
 ### Frontend Logs
 
@@ -197,35 +206,44 @@ TODO: Add monitoring tools:
 
 ### Common Issues
 
-1. **Port Already in Use**
+1. **ChromaDB Connection Error**
+   ```
+   ValueError: Could not connect to a Chroma server. Are you sure it is running?
+   ```
+   **Solution:**
    ```bash
-   # Find process using port
-   lsof -i :8000  # or :3000, :6333, etc.
+   # Start ChromaDB service
+   docker-compose up -d chromadb
    
-   # Kill process
-   kill -9 <PID>
+   # Verify it's running on port 8001
+   curl http://localhost:8001/api/v2/heartbeat
    ```
 
-2. **Database Connection Errors**
+2. **Port Already in Use**
    ```bash
-   # Check if services are running
-   docker-compose ps
+   # Find process using port (Windows)
+   netstat -an | findstr :8000
    
-   # Restart specific service
-   docker-compose restart postgres
+   # Kill process (Windows)
+   taskkill /PID <PID> /F
    ```
 
-3. **Frontend Build Errors**
+3. **Backend Not Starting in Virtual Environment**
+   ```bash
+   # Make sure to activate virtual environment first
+   cd backend
+   venv\Scripts\activate  # Windows
+   # source venv/bin/activate  # Linux/Mac
+   
+   # Then start backend
+   uvicorn backend_app.main:app --reload --host 0.0.0.0 --port 8000
+   ```
+
+4. **Frontend Build Errors**
    ```bash
    # Clear Next.js cache
    rm -rf .next
    npm run dev
-   ```
-
-4. **Backend Import Errors**
-   ```bash
-   # Reinstall dependencies
-   pip install -e .
    ```
 
 ### Getting Help

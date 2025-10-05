@@ -24,7 +24,7 @@ class ChromaDBService:
     def __init__(self):
         """Initialize ChromaDB service with configuration"""
         self.chroma_host = os.getenv("CHROMA_HOST", "localhost")
-        self.chroma_port = int(os.getenv("CHROMA_PORT", "8000"))
+        self.chroma_port = int(os.getenv("CHROMA_PORT", "8001"))
         self.embedding_model_name = os.getenv("EMBEDDING_MODEL", "sentence-transformers/all-MiniLM-L6-v2")
         self.collection_name = os.getenv("CHROMA_COLLECTION", "gitam_policy_documents")
         

@@ -31,9 +31,9 @@ import {
 
 const data = {
   user: {
-    name: "AKHIL PAVULURI",
-    email: "akhil@gitam.edu",
-    avatar: "/avatars/akhil.jpg",
+    name: "Nithin",
+    email: "nithin@gitam.edu",
+    avatar: "/avatars/nithin.jpg",
   },
   navSecondary: [
     {

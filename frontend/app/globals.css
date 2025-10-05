@@ -4,15 +4,15 @@
 
 @layer base {
   :root {
-    /* Light theme colors - keeping minimal for dark-first design */
+    /* Light theme colors - Premium professional palette */
     --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
+    --foreground: 240 10% 3.9%;
     --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
+    --card-foreground: 240 10% 3.9%;
     --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
-    --primary: 142.1 76.2% 36.3%;
-    --primary-foreground: 355.7 100% 97.3%;
+    --popover-foreground: 240 10% 3.9%;
+    --primary: 221.2 83.2% 53.3%;
+    --primary-foreground: 210 40% 98%;
     --secondary: 210 40% 96%;
     --secondary-foreground: 222.2 47.4% 11.2%;
     --muted: 210 40% 96%;
@@ -23,28 +23,44 @@
     --destructive-foreground: 210 40% 98%;
     --border: 214.3 31.8% 91.4%;
     --input: 214.3 31.8% 91.4%;
-    --ring: 142.1 76.2% 36.3%;
+    --ring: 221.2 83.2% 53.3%;
     --radius: 0.75rem;
     --sidebar-background: 0 0% 98%;
     --sidebar-foreground: 240 5.3% 26.1%;
-    --sidebar-primary: 240 5.9% 10%;
-    --sidebar-primary-foreground: 0 0% 98%;
+    --sidebar-primary: 221.2 83.2% 53.3%;
+    --sidebar-primary-foreground: 210 40% 98%;
     --sidebar-accent: 240 4.8% 95.9%;
     --sidebar-accent-foreground: 240 5.9% 10%;
     --sidebar-border: 220 13% 91%;
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    --sidebar-ring: 221.2 83.2% 53.3%;
+    
+    /* Additional premium colors */
+    --success: 142.1 76.2% 36.3%;
+    --success-foreground: 355.7 100% 97.3%;
+    --warning: 38 92% 50%;
+    --warning-foreground: 48 96% 89%;
+    --info: 199.4 89.1% 48.4%;
+    --info-foreground: 210 40% 98%;
+    
+    /* Gradient colors */
+    --gradient-from: 221.2 83.2% 53.3%;
+    --gradient-to: 199.4 89.1% 48.4%;
+    
+    /* Glass morphism */
+    --glass-background: 0 0% 100% / 0.8;
+    --glass-border: 214.3 31.8% 91.4% / 0.5;
   }
 
   .dark {
-    /* Modern dark theme inspired by ChatGPT */
-    --background: 222.2 84% 4.9%;
-    --foreground: 210 40% 98%;
-    --card: 222.2 84% 4.9%;
-    --card-foreground: 210 40% 98%;
-    --popover: 222.2 84% 4.9%;
-    --popover-foreground: 210 40% 98%;
-    --primary: 142.1 76.2% 36.3%;
-    --primary-foreground: 355.7 100% 97.3%;
+    /* Dark theme colors - Premium professional palette */
+    --background: 240 10% 3.9%;
+    --foreground: 0 0% 98%;
+    --card: 240 10% 3.9%;
+    --card-foreground: 0 0% 98%;
+    --popover: 240 10% 3.9%;
+    --popover-foreground: 0 0% 98%;
+    --primary: 217.2 91.2% 59.8%;
+    --primary-foreground: 240 10% 3.9%;
     --secondary: 217.2 32.6% 17.5%;
     --secondary-foreground: 210 40% 98%;
     --muted: 217.2 32.6% 17.5%;
@@ -55,15 +71,31 @@
     --destructive-foreground: 210 40% 98%;
     --border: 217.2 32.6% 17.5%;
     --input: 217.2 32.6% 17.5%;
-    --ring: 142.1 76.2% 36.3%;
+    --ring: 217.2 91.2% 59.8%;
     --sidebar-background: 240 5.9% 10%;
     --sidebar-foreground: 240 4.8% 95.9%;
-    --sidebar-primary: 224.3 76.3% 48%;
-    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-primary: 217.2 91.2% 59.8%;
+    --sidebar-primary-foreground: 240 10% 3.9%;
     --sidebar-accent: 240 3.7% 15.9%;
     --sidebar-accent-foreground: 240 4.8% 95.9%;
     --sidebar-border: 240 3.7% 15.9%;
     --sidebar-ring: 217.2 91.2% 59.8%;
+    
+    /* Additional premium colors */
+    --success: 142.1 70.6% 45.3%;
+    --success-foreground: 240 10% 3.9%;
+    --warning: 38 92% 50%;
+    --warning-foreground: 240 10% 3.9%;
+    --info: 199.4 89.1% 48.4%;
+    --info-foreground: 240 10% 3.9%;
+    
+    /* Gradient colors */
+    --gradient-from: 217.2 91.2% 59.8%;
+    --gradient-to: 199.4 89.1% 48.4%;
+    
+    /* Glass morphism */
+    --glass-background: 240 10% 3.9% / 0.8;
+    --glass-border: 217.2 32.6% 17.5% / 0.5;
   }
 }
 
@@ -136,6 +168,57 @@
     background: hsl(var(--sidebar-foreground) / 0.6);
   }
   
+  /* Premium Glass Morphism */
+  .glass-morphism {
+    background: hsl(var(--glass-background));
+    backdrop-filter: blur(12px);
+    border: 1px solid hsl(var(--glass-border));
+    box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37);
+  }
+  
+  /* Premium Gradient Backgrounds */
+  .gradient-primary {
+    background: linear-gradient(135deg, hsl(var(--gradient-from)), hsl(var(--gradient-to)));
+  }
+  
+  .gradient-text {
+    background: linear-gradient(135deg, hsl(var(--gradient-from)), hsl(var(--gradient-to)));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  
+  /* Premium Status Colors */
+  .status-success {
+    @apply text-green-500;
+  }
+  
+  .status-warning {
+    @apply text-amber-500;
+  }
+  
+  .status-error {
+    @apply text-red-500;
+  }
+  
+  .status-info {
+    @apply text-blue-500;
+  }
+  
+  /* Premium Animations */
+  .premium-transition {
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  
+  .premium-hover {
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  
+  .premium-hover:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+  }
+  
   /* Debug panel */
   .debug-panel {
     @apply border-t border-gray-800 bg-gray-900/50 p-4 max-h-96 overflow-y-auto premium-scrollbar;
@@ -146,20 +229,22 @@
     @apply text-amber-500 font-medium;
   }
   
-  /* Status indicators */
-  .status-success {
-    @apply text-green-400;
+  /* Fix button clickability issues - minimal functional fixes only */
+  .site-header {
+    position: relative;
+    z-index: 30;
   }
   
-  .status-warning {
-    @apply text-amber-400;
+  /* Prevent sidebar rail from interfering with header buttons */
+  [data-sidebar="rail"] {
+    z-index: 5;
   }
   
-  .status-error {
-    @apply text-red-400;
-  }
-  
-  .status-info {
-    @apply text-blue-400;
+  /* Ensure proper click areas for header buttons */
+  .site-header button,
+  .site-header [role="button"] {
+    position: relative;
+    z-index: 20;
+    pointer-events: auto;
   }
 }

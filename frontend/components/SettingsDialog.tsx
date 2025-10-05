@@ -17,8 +17,9 @@ import { Textarea } from '@/components/ui/textarea'
 import { Switch } from '@/components/ui/switch'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Separator } from '@/components/ui/separator'
-import { Settings, Save, X, Eye, EyeOff, Key, Cloud, Server } from 'lucide-react'
+import { Settings, Save, X, Eye, EyeOff, Key, Cloud, Server, Sun, Moon, Monitor } from 'lucide-react'
 import { CLOUD_MODELS } from '@/lib/models'
+import { useTheme } from '@/lib/theme-context'
 
 interface SettingsDialogProps {
   children: React.ReactNode
@@ -27,9 +28,9 @@ interface SettingsDialogProps {
 export function SettingsDialog({ children }: SettingsDialogProps) {
   const [open, setOpen] = useState(false)
   const [showApiKeys, setShowApiKeys] = useState<Record<string, boolean>>({})
+  const { theme, setTheme } = useTheme()
   const [settings, setSettings] = useState({
     // General Settings
-    theme: 'dark',
     language: 'en',
     autoSave: true,
     notifications: true,
@@ -96,7 +97,6 @@ export function SettingsDialog({ children }: SettingsDialogProps) {
   const handleReset = () => {
     // Reset to default settings
     setSettings({
-      theme: 'dark',
       language: 'en',
       autoSave: true,
       notifications: true,
@@ -114,6 +114,7 @@ export function SettingsDialog({ children }: SettingsDialogProps) {
       anthropicApiKey: '',
       ollamaUrl: 'http://localhost:11434',
     })
+    setTheme('system')
   }
 
   const toggleApiKeyVisibility = (key: string) => {
@@ -124,6 +125,19 @@ export function SettingsDialog({ children }: SettingsDialogProps) {
     if (!key) return ''
     if (showApiKeys[key]) return key
     return '•'.repeat(Math.min(key.length, 20))
+  }
+
+  const getThemeIcon = (themeValue: string) => {
+    switch (themeValue) {
+      case 'light':
+        return <Sun className="h-4 w-4" />
+      case 'dark':
+        return <Moon className="h-4 w-4" />
+      case 'system':
+        return <Monitor className="h-4 w-4" />
+      default:
+        return <Sun className="h-4 w-4" />
+    }
   }
 
   return (
@@ -149,14 +163,29 @@ export function SettingsDialog({ children }: SettingsDialogProps) {
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="theme">Theme</Label>
-                <Select value={settings.theme} onValueChange={(value) => setSettings({...settings, theme: value})}>
+                <Select value={theme} onValueChange={(value) => setTheme(value as 'light' | 'dark' | 'system')}>
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="light">Light</SelectItem>
-                    <SelectItem value="dark">Dark</SelectItem>
-                    <SelectItem value="system">System</SelectItem>
+                    <SelectItem value="light">
+                      <div className="flex items-center gap-2">
+                        <Sun className="h-4 w-4" />
+                        Light
+                      </div>
+                    </SelectItem>
+                    <SelectItem value="dark">
+                      <div className="flex items-center gap-2">
+                        <Moon className="h-4 w-4" />
+                        Dark
+                      </div>
+                    </SelectItem>
+                    <SelectItem value="system">
+                      <div className="flex items-center gap-2">
+                        <Monitor className="h-4 w-4" />
+                        System
+                      </div>
+                    </SelectItem>
                   </SelectContent>
                 </Select>
               </div>

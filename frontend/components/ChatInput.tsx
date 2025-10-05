@@ -2,27 +2,55 @@
 
 import { useState, useRef, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
-import { Send, Plus, Mic, Loader2 } from 'lucide-react'
+import { Send, Plus, Mic, Loader2, Zap, Brain, Lightbulb, Cog, Paperclip, Camera, Search, Image, BookOpen, MoreHorizontal, X } from 'lucide-react'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
+import { 
+  DropdownMenu, 
+  DropdownMenuContent, 
+  DropdownMenuItem, 
+  DropdownMenuTrigger, 
+  DropdownMenuSeparator 
+} from '@/components/ui/dropdown-menu'
 
 interface ChatInputProps {
   onSendMessage: (message: string) => void
   isLoading: boolean
   placeholder?: string
+  onThinkingModeChange?: (mode: 'smart' | 'general' | 'deep' | 'max') => void
 }
 
 export function ChatInput({ 
   onSendMessage, 
   isLoading, 
-  placeholder = "Ask anything..." 
+  placeholder = "Ask anything...",
+  onThinkingModeChange,
 }: ChatInputProps) {
   const [message, setMessage] = useState('')
   const textareaRef = useRef<HTMLTextAreaElement>(null)
+  const [thinkingMode, setThinkingMode] = useState<'smart' | 'general' | 'deep' | 'max'>('smart')
+
+  const inferModeFromMessage = (text: string): 'general' | 'deep' | 'max' => {
+    const lower = text.toLowerCase()
+    const lengthScore = text.length
+    const hasReasoningHints = /(reason|why|how|explain|analy(s|z)e|step\s*by\s*step|derive|proof|chain\s*of\s*thought|plan|strategy|compare|evaluate)/i.test(lower)
+    const hasComplexityHints = /(multi-?step|detailed|in\s*depth|thorough|comprehensive|trade-?offs|optim(ize|isation)|architecture|design)/i.test(lower)
+
+    if (hasReasoningHints && (hasComplexityHints || lengthScore > 240)) return 'max'
+    if (hasReasoningHints || hasComplexityHints || lengthScore > 120) return 'deep'
+    return 'general'
+  }
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     if (!message.trim() || isLoading) return
-    
+
+    // If Smart mode, infer the concrete mode just-in-time and reflect it in UI
+    if (thinkingMode === 'smart') {
+      const inferred = inferModeFromMessage(message.trim())
+      setThinkingMode(inferred)
+      onThinkingModeChange?.(inferred)
+    }
+
     onSendMessage(message.trim())
     setMessage('')
     
@@ -40,12 +68,22 @@ export function ChatInput({
   }
 
   const handleInput = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    setMessage(e.target.value)
+    const value = e.target.value
+    setMessage(value)
     
     // Auto-resize textarea
     const textarea = e.target
     textarea.style.height = 'auto'
     textarea.style.height = `${Math.min(textarea.scrollHeight, 200)}px`
+
+    // Live suggest mode when Smart is selected (non-destructive; only reflect on submit)
+    if (thinkingMode === 'smart' && value.trim().length > 0) {
+      const suggested = inferModeFromMessage(value)
+      // Do not change the actual mode here to avoid flicker; you can surface suggestion via tooltip later
+      // If you'd like to reflect immediately, uncomment below:
+      // setThinkingMode(suggested)
+      // onThinkingModeChange?.(suggested)
+    }
   }
 
   useEffect(() => {
@@ -55,13 +93,68 @@ export function ChatInput({
     }
   }, [])
 
+  const handleThinkingModeChange = (value: 'smart' | 'general' | 'deep' | 'max') => {
+    setThinkingMode(value)
+    onThinkingModeChange?.(value)
+  }
+
+  const getModeIcon = (mode: 'smart' | 'general' | 'deep' | 'max') => {
+    switch (mode) {
+      case 'smart': return <Zap className="h-3 w-3" />
+      case 'general': return <Lightbulb className="h-3 w-3" />
+      case 'deep': return <Brain className="h-3 w-3" />
+      case 'max': return <Cog className="h-3 w-3" />
+      default: return <Zap className="h-3 w-3" />
+    }
+  }
+
+  const getModeDisplayText = (mode: 'smart' | 'general' | 'deep' | 'max') => {
+    switch (mode) {
+      case 'smart': return 'Smart'
+      case 'general': return 'General'
+      case 'deep': return 'Deep Thinking'
+      case 'max': return 'Reasoning'
+      default: return 'Smart'
+    }
+  }
+
+  const isSpecialMode = thinkingMode !== 'smart'
+
   return (
     <TooltipProvider>
       <div className="relative">
+        {/* Mode Display - always shows current mode */}
+        <div className="mb-3 group">
+          {isSpecialMode ? (
+            <button
+              onClick={() => handleThinkingModeChange('smart')}
+              className="flex items-center gap-2 text-sm text-blue-400 hover:text-blue-300 transition-colors"
+              title="Click to remove mode"
+            >
+              <div className="flex-shrink-0 w-3 h-3 flex items-center justify-center">
+                <div className="group-hover:hidden">
+                  {getModeIcon(thinkingMode)}
+                </div>
+                <div className="hidden group-hover:block">
+                  <X className="h-3 w-3" />
+                </div>
+              </div>
+              <span>{getModeDisplayText(thinkingMode)}</span>
+            </button>
+          ) : (
+            <div className="flex items-center gap-2 text-sm text-blue-400">
+              <div className="flex-shrink-0 w-3 h-3 flex items-center justify-center">
+                {getModeIcon(thinkingMode)}
+              </div>
+              <span>{getModeDisplayText(thinkingMode)}</span>
+            </div>
+          )}
+        </div>
+
         <div className="flex items-end gap-3 bg-background border border-border rounded-2xl p-4 shadow-lg hover:border-border/80 transition-colors">
-          {/* Attachment Button */}
-          <Tooltip>
-            <TooltipTrigger asChild>
+          {/* Add Button with Dropdown */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
               <Button 
                 variant="ghost" 
                 size="icon"
@@ -69,11 +162,66 @@ export function ChatInput({
               >
                 <Plus className="h-4 w-4" />
               </Button>
-            </TooltipTrigger>
-            <TooltipContent>
-              <p>Attach files</p>
-            </TooltipContent>
-          </Tooltip>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start" className="w-64">
+              {/* File Options */}
+              <DropdownMenuItem>
+                <Paperclip className="h-4 w-4 mr-2" />
+                Add photos & files
+              </DropdownMenuItem>
+              <DropdownMenuItem>
+                <Camera className="h-4 w-4 mr-2" />
+                Take screenshot
+              </DropdownMenuItem>
+              <DropdownMenuItem>
+                <Camera className="h-4 w-4 mr-2" />
+                Take photo
+              </DropdownMenuItem>
+              
+              <DropdownMenuSeparator />
+              
+              {/* Thinking Mode Options */}
+              <DropdownMenuItem 
+                onClick={() => handleThinkingModeChange('smart')}
+                className={thinkingMode === 'smart' ? 'bg-blue-50 text-blue-600' : ''}
+              >
+                <Zap className="h-4 w-4 mr-2" />
+                Smart (Auto)
+                {thinkingMode === 'smart' && <span className="ml-auto text-blue-600">✓</span>}
+              </DropdownMenuItem>
+              <DropdownMenuItem 
+                onClick={() => handleThinkingModeChange('general')}
+                className={thinkingMode === 'general' ? 'bg-blue-50 text-blue-600' : ''}
+              >
+                <Lightbulb className="h-4 w-4 mr-2" />
+                General
+                {thinkingMode === 'general' && <span className="ml-auto text-blue-600">✓</span>}
+              </DropdownMenuItem>
+              <DropdownMenuItem 
+                onClick={() => handleThinkingModeChange('deep')}
+                className={thinkingMode === 'deep' ? 'bg-blue-50 text-blue-600' : ''}
+              >
+                <Brain className="h-4 w-4 mr-2" />
+                Deep Thinking
+                {thinkingMode === 'deep' && <span className="ml-auto text-blue-600">✓</span>}
+              </DropdownMenuItem>
+              <DropdownMenuItem 
+                onClick={() => handleThinkingModeChange('max')}
+                className={thinkingMode === 'max' ? 'bg-blue-50 text-blue-600' : ''}
+              >
+                <Cog className="h-4 w-4 mr-2" />
+                Reasoning (Max Thinking)
+                {thinkingMode === 'max' && <span className="ml-auto text-blue-600">✓</span>}
+              </DropdownMenuItem>
+              
+              <DropdownMenuSeparator />
+              
+              <DropdownMenuItem>
+                <MoreHorizontal className="h-4 w-4 mr-2" />
+                More
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
 
           {/* Text Input */}
           <div className="flex-1 relative">

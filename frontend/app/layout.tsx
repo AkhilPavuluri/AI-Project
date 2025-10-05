@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import { Inter } from 'next/font/google'
 import './globals.css'
+import { ThemeProvider } from '@/lib/theme-context'
 
 const inter = Inter({ subsets: ['latin'] })
 
@@ -15,11 +16,13 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="en" className="dark">
+    <html lang="en" suppressHydrationWarning>
       <body className={inter.className}>
-        <div className="min-h-screen bg-background text-foreground">
-          {children}
-        </div>
+        <ThemeProvider defaultTheme="system" storageKey="gitam-ai-theme">
+          <div className="min-h-screen bg-background text-foreground">
+            {children}
+          </div>
+        </ThemeProvider>
       </body>
     </html>
   )

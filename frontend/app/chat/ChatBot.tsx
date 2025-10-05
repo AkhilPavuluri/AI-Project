@@ -114,27 +114,10 @@ export function ChatBot({ showDebugPanel, simulateFailure, onUpdateChatHistory, 
 
   return (
     <div className="flex-1 flex flex-col h-full">
-      {/* Model Indicator */}
-      {currentModel && (
-        <div className="px-6 py-2 border-b bg-muted/30">
-          <div className="max-w-4xl mx-auto flex items-center gap-2 text-sm text-muted-foreground">
-            <span>Using:</span>
-            <Badge variant="outline" className="flex items-center gap-1">
-              {currentModel.category === 'ollama' ? (
-                <Server className="h-3 w-3" />
-              ) : (
-                <Cloud className="h-3 w-3" />
-              )}
-              {currentModel.name}
-            </Badge>
-            <span className="text-xs">({currentModel.provider})</span>
-          </div>
-        </div>
-      )}
 
       {messages.length === 0 ? (
         /* Initial Empty State - Properly Centered */
-        <div className="flex-1 flex flex-col items-center justify-center px-6 py-12 -mt-8">
+        <div className="flex-1 flex flex-col items-center justify-center px-6 py-12">
           {/* Welcome Message */}
           <div className="text-center mb-12">
             <h1 className="text-xl font-light text-foreground/80 tracking-wide">
@@ -144,20 +127,6 @@ export function ChatBot({ showDebugPanel, simulateFailure, onUpdateChatHistory, 
           
           {/* Centered Input Field */}
           <div className="w-full max-w-3xl">
-            {/* Model indicator above input */}
-            {currentModel && (
-              <div className="mb-4 flex items-center justify-center gap-2 text-sm text-muted-foreground">
-                <span>Messages will be sent to:</span>
-                <Badge variant="outline" className="flex items-center gap-1">
-                  {currentModel.category === 'ollama' ? (
-                    <Server className="h-3 w-3" />
-                  ) : (
-                    <Cloud className="h-3 w-3" />
-                  )}
-                  {currentModel.name}
-                </Badge>
-              </div>
-            )}
             <ChatInput
               onSendMessage={handleSendMessage}
               isLoading={isLoading}
@@ -187,22 +156,8 @@ export function ChatBot({ showDebugPanel, simulateFailure, onUpdateChatHistory, 
           </div>
 
           {/* Chat Input */}
-          <div className="px-6 py-6 border-t">
+          <div className="px-6 py-6">
             <div className="max-w-4xl mx-auto">
-              {/* Model indicator above input */}
-              {currentModel && (
-                <div className="mb-3 flex items-center gap-2 text-sm text-muted-foreground">
-                  <span>Messages will be sent to:</span>
-                  <Badge variant="outline" className="flex items-center gap-1">
-                    {currentModel.category === 'ollama' ? (
-                      <Server className="h-3 w-3" />
-                    ) : (
-                      <Cloud className="h-3 w-3" />
-                    )}
-                    {currentModel.name}
-                  </Badge>
-                </div>
-              )}
               <ChatInput
                 onSendMessage={handleSendMessage}
                 isLoading={isLoading}

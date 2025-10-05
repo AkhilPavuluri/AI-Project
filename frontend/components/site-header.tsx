@@ -13,6 +13,8 @@ import {
 import { Button } from "@/components/ui/button"
 import { AIModel, OllamaModel, CloudModel } from "@/lib/models"
 import { modelService } from "@/lib/modelService"
+import { ThemeToggle } from "@/components/ThemeToggle"
+import { SettingsDialog } from "@/components/SettingsDialog"
 
 interface SiteHeaderProps {
   selectedModel?: string
@@ -49,7 +51,7 @@ export function SiteHeader({ selectedModel = "gemini-2.5-flash", onModelChange }
   const currentModel = models.find(model => model.id === selectedModel) || models.find(model => model.isAvailable) || models[0]
 
   return (
-    <header className="group-has-data-[collapsible=icon]/sidebar-wrapper:h-12 flex h-12 shrink-0 items-center gap-2 transition-[width,height] ease-linear">
+    <header className="site-header group-has-data-[collapsible=icon]/sidebar-wrapper:h-12 flex h-12 shrink-0 items-center gap-2 transition-[width,height] ease-linear relative z-30">
       <div className="flex w-full items-center justify-between gap-1 px-4 lg:gap-2 lg:px-6">
         {/* Left side - Sidebar trigger and model selector */}
         <div className="flex items-center gap-2">
@@ -148,41 +150,62 @@ export function SiteHeader({ selectedModel = "gemini-2.5-flash", onModelChange }
           </DropdownMenu>
         </div>
 
-        {/* Right side - 3-dot menu */}
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="icon" className="h-8 w-8">
-              <MoreHorizontal className="h-4 w-4" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-56 premium-scrollbar">
-            <DropdownMenuItem>
-              <Settings className="h-4 w-4 mr-2" />
-              Settings
-            </DropdownMenuItem>
-            <DropdownMenuItem>
-              <HelpCircle className="h-4 w-4 mr-2" />
-              Get Help
-            </DropdownMenuItem>
-            <DropdownMenuItem>
-              <Search className="h-4 w-4 mr-2" />
-              Search
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem>
-              <Download className="h-4 w-4 mr-2" />
-              Export Chat
-            </DropdownMenuItem>
-            <DropdownMenuItem>
-              <Share className="h-4 w-4 mr-2" />
-              Share Chat
-            </DropdownMenuItem>
-            <DropdownMenuItem>
-              <Archive className="h-4 w-4 mr-2" />
-              Archive Chat
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+        {/* Right side - Policy Crafter pill, Theme toggle, and 3-dot menu */}
+        <div className="flex items-center gap-2">
+          <Button variant="ghost" size="sm" className="h-8 px-3 gap-2">
+            <div className="bg-primary text-primary-foreground text-xs font-semibold px-2 py-0.5 rounded-full">
+              Alpha
+            </div>
+            <span className="text-xs font-medium text-muted-foreground">
+              Policy Crafter
+            </span>
+          </Button>
+          <Separator
+            orientation="vertical"
+            className="mx-2 data-[orientation=vertical]:h-4"
+          />
+          <ThemeToggle />
+          <Separator
+            orientation="vertical"
+            className="mx-2 data-[orientation=vertical]:h-4"
+          />
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="icon" className="h-8 w-8">
+                <MoreHorizontal className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-56 premium-scrollbar">
+              <SettingsDialog>
+                <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
+                  <Settings className="h-4 w-4 mr-2" />
+                  Settings
+                </DropdownMenuItem>
+              </SettingsDialog>
+              <DropdownMenuItem>
+                <HelpCircle className="h-4 w-4 mr-2" />
+                Get Help
+              </DropdownMenuItem>
+              <DropdownMenuItem>
+                <Search className="h-4 w-4 mr-2" />
+                Search
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem>
+                <Download className="h-4 w-4 mr-2" />
+                Export Chat
+              </DropdownMenuItem>
+              <DropdownMenuItem>
+                <Share className="h-4 w-4 mr-2" />
+                Share Chat
+              </DropdownMenuItem>
+              <DropdownMenuItem>
+                <Archive className="h-4 w-4 mr-2" />
+                Archive Chat
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
       </div>
     </header>
   )
