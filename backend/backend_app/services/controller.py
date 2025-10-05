@@ -27,19 +27,20 @@ class LLMController:
         
         logger.info("LLMController initialized with Ollama service integration")
     
-    async def process_query(self, query: str, model: str = "deepseek-r1:7b", context: Optional[Dict[str, Any]] = None) -> str:
+    async def process_query(self, query: str, model: str = "deepseek-r1:7b", thinking_mode: str = "smart", context: Optional[Dict[str, Any]] = None) -> str:
         """
         Process user query through LLM controller with iterative refinement.
         
         Args:
             query: User query
             model: Model to use for generation
+            thinking_mode: Thinking mode (smart, general, deep, reasoning)
             context: Optional context for the query
             
         Returns:
             Generated response
         """
-        logger.info(f"Processing query through LLM controller: {query[:50]}...")
+        logger.info(f"Processing query through LLM controller: {query[:50]}... with thinking mode: {thinking_mode}")
         
         try:
             # Generate initial response using Ollama service

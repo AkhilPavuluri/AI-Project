@@ -75,9 +75,10 @@ async def query_policies(request: QueryRequest) -> QueryResponse:
         # 3. Knowledge graph traversal
         kg_result = await kg_service.traverse_graph(request.query)
         
-        # 4. LLM controller processing with selected model
+        # 4. LLM controller processing with selected model and thinking mode
         model = request.model or "deepseek-r1:7b"
-        answer = await llm_controller.process_query(request.query, model)
+        thinking_mode = request.thinking_mode or "smart"
+        answer = await llm_controller.process_query(request.query, model, thinking_mode)
         
         # 6. Extract citations (placeholder)
         citations = []

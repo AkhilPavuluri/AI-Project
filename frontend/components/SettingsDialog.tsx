@@ -76,21 +76,12 @@ export function SettingsDialog({ children }: SettingsDialogProps) {
     // Save settings to localStorage
     localStorage.setItem('app-settings', JSON.stringify(settings))
     
-    // Update environment variables for API keys (in a real app, you'd send these to backend)
-    if (settings.geminiApiKey) {
-      process.env.NEXT_PUBLIC_GEMINI_API_KEY = settings.geminiApiKey
-    }
-    if (settings.openaiApiKey) {
-      process.env.NEXT_PUBLIC_OPENAI_API_KEY = settings.openaiApiKey
-    }
-    if (settings.anthropicApiKey) {
-      process.env.NEXT_PUBLIC_ANTHROPIC_API_KEY = settings.anthropicApiKey
-    }
-    if (settings.ollamaUrl) {
-      process.env.NEXT_PUBLIC_OLLAMA_URL = settings.ollamaUrl
-    }
-    
     console.log('Settings saved:', settings)
+    
+    // Trigger a page refresh to reload models with new API keys
+    // In a real app, you'd dispatch an event or use a state management solution
+    window.location.reload()
+    
     setOpen(false)
   }
 

@@ -30,11 +30,13 @@ export default function ChatPage() {
         console.log('Available models:', allModels)
         
         if (allModels.length > 0) {
-          // Prefer Ollama models first, then cloud models
+          // Prefer cloud models first, then Ollama models
+          const cloudModels = allModels.filter(m => m.category === 'cloud' && m.isAvailable)
           const ollamaModels = allModels.filter(m => m.category === 'ollama')
-          const cloudModels = allModels.filter(m => m.category === 'cloud')
           
-          const defaultModel = ollamaModels.length > 0 ? ollamaModels[0].id : cloudModels[0].id
+          const defaultModel = cloudModels.length > 0 ? cloudModels[0].id : 
+                              ollamaModels.length > 0 ? ollamaModels[0].id : 
+                              allModels[0].id
           console.log('Setting default model to:', defaultModel)
           setSelectedModel(defaultModel)
         } else {

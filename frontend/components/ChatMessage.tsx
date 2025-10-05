@@ -5,6 +5,7 @@ import { User, Bot, AlertCircle, ChevronDown, ChevronRight, Brain } from 'lucide
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
+import { MarkdownRenderer } from '@/components/MarkdownRenderer'
 
 interface Message {
   id: string
@@ -12,6 +13,7 @@ interface Message {
   role: 'user' | 'assistant' | 'system'
   timestamp: Date
   response?: any
+  thinkingMode?: 'smart' | 'general' | 'deep' | 'reasoning'
 }
 
 interface ChatMessageProps {
@@ -39,11 +41,23 @@ export function ChatMessage({ message }: ChatMessageProps) {
 
   // Clean message content by removing think tags
   const cleanMessageContent = (content: string) => {
+    if (!content) return ''
     return content.replace(/<think>[\s\S]*?<\/think>/gi, '').trim()
+  }
+
+  // For cloud models, we don't have <think> tags, so we'll show a generic thinking process
+  const getThinkingProcessForCloudModel = (thinkingMode: string) => {
+    if (thinkingMode === 'deep') {
+      return "This response was generated using deep thinking mode, which encourages step-by-step analysis and multiple perspectives."
+    } else if (thinkingMode === 'reasoning') {
+      return "This response was generated using reasoning mode, which maximizes accuracy through in-depth analysis and critical thinking."
+    }
+    return null
   }
 
   const thinkingContent = extractThinkingContent(message.content)
   const cleanContent = cleanMessageContent(message.content)
+  const cloudThinkingContent = getThinkingProcessForCloudModel(message.thinkingMode || '')
 
   const getAvatarIcon = () => {
     switch (message.role) {
@@ -104,8 +118,11 @@ export function ChatMessage({ message }: ChatMessageProps) {
               ? 'bg-destructive/10 text-destructive border border-destructive/20'
               : 'bg-muted text-foreground border border-border'
         }`}>
-          <div className="whitespace-pre-wrap break-words">
-            {cleanContent}
+          <div className="break-words">
+            <MarkdownRenderer 
+              content={cleanContent || message.content || 'No content available'} 
+              className="text-sm"
+            />
           </div>
           
           {/* Show placeholder warning for assistant messages */}
@@ -118,8 +135,8 @@ export function ChatMessage({ message }: ChatMessageProps) {
             </div>
           )}
 
-          {/* Thinking Section for Assistant Messages */}
-          {message.role === 'assistant' && (message.response?.processing_trace || thinkingContent) && (
+          {/* Thinking Section for Assistant Messages - Only show for deep thinking and reasoning modes */}
+          {message.role === 'assistant' && (message.thinkingMode === 'deep' || message.thinkingMode === 'reasoning') && (message.response?.processing_trace || thinkingContent || cloudThinkingContent) && (
             <div className="mt-3">
               <Collapsible open={isThinkingOpen} onOpenChange={setIsThinkingOpen}>
                 <CollapsibleTrigger className="flex items-center gap-2 text-xs text-muted-foreground hover:text-foreground transition-colors">
@@ -133,12 +150,15 @@ export function ChatMessage({ message }: ChatMessageProps) {
                 </CollapsibleTrigger>
                 <CollapsibleContent className="mt-2">
                   <div className="bg-muted/50 border border-border/50 rounded-lg p-3 text-xs space-y-2">
-                    {/* Show extracted thinking content */}
-                    {thinkingContent && (
+                    {/* Show extracted thinking content or cloud model thinking process */}
+                    {(thinkingContent || cloudThinkingContent) && (
                       <div>
                         <span className="font-medium text-foreground">Reasoning:</span>
-                        <div className="ml-2 mt-1 text-xs text-muted-foreground whitespace-pre-wrap">
-                          {thinkingContent}
+                        <div className="ml-2 mt-1 text-xs text-muted-foreground">
+                          <MarkdownRenderer 
+                            content={thinkingContent || cloudThinkingContent || ''} 
+                            className="text-xs"
+                          />
                         </div>
                       </div>
                     )}
@@ -161,7 +181,7 @@ export function ChatMessage({ message }: ChatMessageProps) {
                                 <div>
                                   <span className="text-muted-foreground">Dense:</span>
                                   <div className="ml-2 text-xs text-muted-foreground">
-                                    {message.response.processing_trace.retrieval.dense.map((item, index) => (
+                                    {message.response.processing_trace.retrieval.dense.map((item: string, index: number) => (
                                       <div key={index} className="truncate">• {item}</div>
                                     ))}
                                   </div>
@@ -171,7 +191,7 @@ export function ChatMessage({ message }: ChatMessageProps) {
                                 <div>
                                   <span className="text-muted-foreground">Sparse:</span>
                                   <div className="ml-2 text-xs text-muted-foreground">
-                                    {message.response.processing_trace.retrieval.sparse.map((item, index) => (
+                                    {message.response.processing_trace.retrieval.sparse.map((item: string, index: number) => (
                                       <div key={index} className="truncate">• {item}</div>
                                     ))}
                                   </div>

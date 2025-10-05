@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react"
-import { ChevronDown, Bot, MoreHorizontal, Settings, HelpCircle, Search, Download, Share, Archive, Cloud, Server, Wifi, WifiOff } from "lucide-react"
+import { ChevronDown, Bot, MoreHorizontal, Settings, HelpCircle, Search, Download, Share, Archive, Cloud, Server, Wifi, WifiOff, RefreshCw } from "lucide-react"
 import { Separator } from "@/components/ui/separator"
 import { SidebarTrigger } from "@/components/ui/sidebar"
 import {
@@ -25,6 +25,7 @@ export function SiteHeader({ selectedModel = "gemini-2.5-flash", onModelChange }
   const [models, setModels] = useState<AIModel[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [isOllamaConnected, setIsOllamaConnected] = useState(false)
+  const [isRefreshing, setIsRefreshing] = useState(false)
 
   useEffect(() => {
     const loadModels = async () => {
@@ -48,7 +49,28 @@ export function SiteHeader({ selectedModel = "gemini-2.5-flash", onModelChange }
     loadModels()
   }, [])
 
-  const currentModel = models.find(model => model.id === selectedModel) || models.find(model => model.isAvailable) || models[0]
+  const refreshModels = async () => {
+    setIsRefreshing(true)
+    try {
+      const [allModels, ollamaConnected] = await Promise.all([
+        modelService.refreshModels(),
+        modelService.checkOllamaConnection()
+      ])
+      setModels(allModels)
+      setIsOllamaConnected(ollamaConnected)
+    } catch (error) {
+      console.error('Error refreshing models:', error)
+      setModels(modelService.getCloudModels())
+    } finally {
+      setIsRefreshing(false)
+    }
+  }
+
+  // Prioritize cloud models for default selection
+  const currentModel = models.find(model => model.id === selectedModel) || 
+    models.find(model => model.category === 'cloud' && model.isAvailable) ||
+    models.find(model => model.isAvailable) || 
+    models[0]
 
   return (
     <header className="site-header group-has-data-[collapsible=icon]/sidebar-wrapper:h-12 flex h-12 shrink-0 items-center gap-2 transition-[width,height] ease-linear relative z-30">
@@ -73,45 +95,29 @@ export function SiteHeader({ selectedModel = "gemini-2.5-flash", onModelChange }
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="start" className="w-80 premium-scrollbar max-h-96">
-              {/* Ollama Models Section */}
-              <DropdownMenuLabel className="flex items-center gap-2 px-3 py-2">
-                <Server className="h-4 w-4" />
-                <span>Local Models (Ollama)</span>
-                {isOllamaConnected ? (
-                  <Wifi className="h-3 w-3 text-green-500" />
-                ) : (
-                  <WifiOff className="h-3 w-3 text-red-500" />
-                )}
-              </DropdownMenuLabel>
-              {models
-                .filter((model): model is OllamaModel => model.category === 'ollama')
-                .map((model) => (
-                  <DropdownMenuItem
-                    key={model.id}
-                    onClick={() => onModelChange?.(model.id)}
-                    className="flex flex-col items-start gap-1 p-3"
-                  >
-                    <div className="flex items-center gap-2 w-full">
-                      <Server className="h-4 w-4" />
-                      <span className="font-medium">{model.name}</span>
-                      <span className="text-xs text-green-600 bg-green-100 px-2 py-0.5 rounded">
-                        Downloaded
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                      <span>{model.description}</span>
-                      {model.size && <span>• {model.size}</span>}
-                    </div>
-                  </DropdownMenuItem>
-                ))}
-
-              {/* Cloud Models Section - Only show if any are available */}
+              {/* Refresh Button */}
+              <div className="px-3 py-2 border-b">
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={refreshModels}
+                  disabled={isRefreshing}
+                  className="w-full"
+                >
+                  <RefreshCw className={`h-4 w-4 mr-2 ${isRefreshing ? 'animate-spin' : ''}`} />
+                  {isRefreshing ? 'Refreshing...' : 'Refresh Models'}
+                </Button>
+              </div>
+              
+              {/* Cloud Models Section - Show first and prominently */}
               {models.filter(model => model.category === 'cloud').length > 0 && (
                 <>
-                  <DropdownMenuSeparator />
                   <DropdownMenuLabel className="flex items-center gap-2 px-3 py-2">
                     <Cloud className="h-4 w-4" />
                     <span>Cloud Models</span>
+                    <span className="text-xs text-blue-600 bg-blue-100 px-2 py-0.5 rounded">
+                      Recommended
+                    </span>
                   </DropdownMenuLabel>
                   {models
                     .filter((model): model is CloudModel => model.category === 'cloud')
@@ -137,12 +143,49 @@ export function SiteHeader({ selectedModel = "gemini-2.5-flash", onModelChange }
                 </>
               )}
 
+              {/* Ollama Models Section - Show after cloud models */}
+              {models.filter(model => model.category === 'ollama').length > 0 && (
+                <>
+                  {models.filter(model => model.category === 'cloud').length > 0 && <DropdownMenuSeparator />}
+                  <DropdownMenuLabel className="flex items-center gap-2 px-3 py-2">
+                    <Server className="h-4 w-4" />
+                    <span>Local Models (Ollama)</span>
+                    {isOllamaConnected ? (
+                      <Wifi className="h-3 w-3 text-green-500" />
+                    ) : (
+                      <WifiOff className="h-3 w-3 text-red-500" />
+                    )}
+                  </DropdownMenuLabel>
+                  {models
+                    .filter((model): model is OllamaModel => model.category === 'ollama')
+                    .map((model) => (
+                      <DropdownMenuItem
+                        key={model.id}
+                        onClick={() => onModelChange?.(model.id)}
+                        className="flex flex-col items-start gap-1 p-3"
+                      >
+                        <div className="flex items-center gap-2 w-full">
+                          <Server className="h-4 w-4" />
+                          <span className="font-medium">{model.name}</span>
+                          <span className="text-xs text-green-600 bg-green-100 px-2 py-0.5 rounded">
+                            Downloaded
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                          <span>{model.description}</span>
+                          {model.size && <span>• {model.size}</span>}
+                        </div>
+                      </DropdownMenuItem>
+                    ))}
+                </>
+              )}
+
               {/* No models available message */}
               {models.length === 0 && !isLoading && (
                 <div className="px-3 py-4 text-center text-sm text-muted-foreground">
                   <p>No models available</p>
                   <p className="text-xs mt-1">
-                    Configure API keys in Settings or download Ollama models
+                    Configure API keys in Settings to use cloud models
                   </p>
                 </div>
               )}

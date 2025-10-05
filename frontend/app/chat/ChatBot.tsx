@@ -5,7 +5,7 @@ import { ChatMessage } from '@/components/ChatMessage'
 import { ChatInput } from '@/components/ChatInput'
 import { TypingIndicator } from '@/components/TypingIndicator'
 import { DebugPanel } from './DebugPanel'
-import { queryAPI, type QueryResponse } from '@/lib/api'
+import { queryAPI, queryModelDirect, type QueryResponse } from '@/lib/api'
 import { modelService } from '@/lib/modelService'
 import { AIModel } from '@/lib/models'
 import { Badge } from '@/components/ui/badge'
@@ -17,6 +17,7 @@ interface Message {
   role: 'user' | 'assistant' | 'system'
   timestamp: Date
   response?: QueryResponse
+  thinkingMode?: ThinkingMode
 }
 
 interface ChatBotProps {
@@ -26,10 +27,13 @@ interface ChatBotProps {
   selectedModel: string // Required - must be provided from top bar
 }
 
+type ThinkingMode = 'smart' | 'general' | 'deep' | 'reasoning'
+
 export function ChatBot({ showDebugPanel, simulateFailure, onUpdateChatHistory, selectedModel }: ChatBotProps) {
   const [messages, setMessages] = useState<Message[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const [currentModel, setCurrentModel] = useState<AIModel | null>(null)
+  const [thinkingMode, setThinkingMode] = useState<ThinkingMode>('smart')
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
   // Load model information when selectedModel changes
@@ -58,6 +62,46 @@ export function ChatBot({ showDebugPanel, simulateFailure, onUpdateChatHistory, 
     scrollToBottom()
   }, [messages, isLoading])
 
+  // Mode-specific prompting strategies
+  const applyModePrompting = (content: string, mode: ThinkingMode, isCloudModel: boolean = false): string => {
+    switch (mode) {
+      case 'smart':
+        // Smart mode: Friendly, context-aware responses for education policy
+        return `You are a helpful AI assistant specializing in education policy. Respond in a friendly, conversational way. For simple greetings like "hi", respond warmly and ask how you can help with education policy questions. For policy questions, provide helpful, practical guidance. User query: ${content}`
+      
+      case 'general':
+        // General mode: Direct, minimal prompting for natural conversation
+        return content
+      
+      case 'deep':
+        // Deep thinking: Ask it to think longer
+        if (isCloudModel) {
+          // For cloud models, don't use <think> tags as they get processed by the LLM
+          return `Please think through this step by step and consider multiple perspectives. Provide a thorough analysis of: ${content}. Take your time to think through this carefully and provide detailed insights.`
+        } else {
+          // For local models, use <think> tags for thinking process visibility
+          return `<think>Please think through this step by step and consider multiple perspectives.</think>Please provide a thorough analysis of: ${content}. Take your time to think through this carefully and provide detailed insights.`
+        }
+      
+      case 'reasoning':
+        // Reasoning: Ask for in-depth reasoning and deep thinking max out for accuracy
+        if (isCloudModel) {
+          // For cloud models, don't use <think> tags as they get processed by the LLM
+          return `Please engage in deep reasoning and critical thinking. Consider all possible angles, potential issues, and provide the most accurate and comprehensive response possible. Provide an in-depth analysis with detailed reasoning for: ${content}. I need maximum accuracy and thoroughness in your response.`
+        } else {
+          // For local models, use <think> tags for thinking process visibility
+          return `<think>Please engage in deep reasoning and critical thinking. Consider all possible angles, potential issues, and provide the most accurate and comprehensive response possible.</think>Please provide an in-depth analysis with detailed reasoning for: ${content}. I need maximum accuracy and thoroughness in your response.`
+        }
+      
+      default:
+        return content
+    }
+  }
+
+  const handleThinkingModeChange = (mode: ThinkingMode) => {
+    setThinkingMode(mode)
+  }
+
   const handleSendMessage = async (content: string) => {
     const userMessage: Message = {
       id: Date.now().toString(),
@@ -78,15 +122,45 @@ export function ChatBot({ showDebugPanel, simulateFailure, onUpdateChatHistory, 
       
       console.log(`ChatBot: Using selected model from top bar: ${selectedModel}`)
       console.log(`ChatBot: Current model info:`, currentModel)
+      console.log(`ChatBot: Using thinking mode: ${thinkingMode}`)
       
-      const response = await queryAPI(content, simulateFailure, selectedModel)
+      // Determine if this is a cloud model
+      const isCloudModel = currentModel?.category === 'cloud'
+      
+      // Apply mode-specific prompting
+      const promptedContent = applyModePrompting(content, thinkingMode, isCloudModel)
+      
+      // Use direct API calls for cloud models, backend API for Ollama models
+      let response: QueryResponse
+      if (currentModel?.category === 'cloud') {
+        console.log('Using direct cloud API for:', selectedModel)
+        const directResponse = await queryModelDirect(promptedContent, selectedModel)
+        response = {
+          answer: directResponse.answer,
+          citations: [], // Cloud models don't have citations in this implementation
+          processing_trace: {
+            language: 'en',
+            retrieval: { dense: [], sparse: [] },
+            kg_traversal: 'Direct cloud API call',
+            controller_iterations: 1
+          },
+          risk_assessment: 'N/A'
+        }
+      } else {
+        console.log('Using backend API for:', selectedModel)
+        response = await queryAPI(promptedContent, simulateFailure, selectedModel, thinkingMode)
+      }
+      
+      // Fallback if response.answer is empty or undefined
+      const responseContent = response.answer || `I received your message "${content}" but couldn't generate a proper response. This might be due to API configuration issues.`
       
       const assistantMessage: Message = {
         id: (Date.now() + 1).toString(),
-        content: response.answer,
+        content: responseContent,
         role: 'assistant',
         timestamp: new Date(),
         response: response,
+        thinkingMode: thinkingMode,
       }
 
       setMessages(prev => [...prev, assistantMessage])
@@ -121,7 +195,7 @@ export function ChatBot({ showDebugPanel, simulateFailure, onUpdateChatHistory, 
           {/* Welcome Message */}
           <div className="text-center mb-12">
             <h1 className="text-xl font-light text-foreground/80 tracking-wide">
-              What would you like to know about GITAM?
+              How can I help you with education policy today?
             </h1>
           </div>
           
@@ -130,7 +204,8 @@ export function ChatBot({ showDebugPanel, simulateFailure, onUpdateChatHistory, 
             <ChatInput
               onSendMessage={handleSendMessage}
               isLoading={isLoading}
-              placeholder="Ask about GITAM education policies..."
+              placeholder="Ask about education policies or say hi..."
+              onThinkingModeChange={handleThinkingModeChange}
             />
           </div>
         </div>
@@ -161,7 +236,8 @@ export function ChatBot({ showDebugPanel, simulateFailure, onUpdateChatHistory, 
               <ChatInput
                 onSendMessage={handleSendMessage}
                 isLoading={isLoading}
-                placeholder="Ask about GITAM education policies..."
+                placeholder="Ask about education policies or say hi..."
+                onThinkingModeChange={handleThinkingModeChange}
               />
             </div>
           </div>

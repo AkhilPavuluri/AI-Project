@@ -16,26 +16,26 @@ interface ChatInputProps {
   onSendMessage: (message: string) => void
   isLoading: boolean
   placeholder?: string
-  onThinkingModeChange?: (mode: 'smart' | 'general' | 'deep' | 'max') => void
+  onThinkingModeChange?: (mode: 'smart' | 'general' | 'deep' | 'reasoning') => void
 }
 
 export function ChatInput({ 
   onSendMessage, 
   isLoading, 
-  placeholder = "Ask anything...",
+  placeholder = "Ask about education policies or say hi...",
   onThinkingModeChange,
 }: ChatInputProps) {
   const [message, setMessage] = useState('')
   const textareaRef = useRef<HTMLTextAreaElement>(null)
-  const [thinkingMode, setThinkingMode] = useState<'smart' | 'general' | 'deep' | 'max'>('smart')
+  const [thinkingMode, setThinkingMode] = useState<'smart' | 'general' | 'deep' | 'reasoning'>('smart')
 
-  const inferModeFromMessage = (text: string): 'general' | 'deep' | 'max' => {
+  const inferModeFromMessage = (text: string): 'general' | 'deep' | 'reasoning' => {
     const lower = text.toLowerCase()
     const lengthScore = text.length
     const hasReasoningHints = /(reason|why|how|explain|analy(s|z)e|step\s*by\s*step|derive|proof|chain\s*of\s*thought|plan|strategy|compare|evaluate)/i.test(lower)
     const hasComplexityHints = /(multi-?step|detailed|in\s*depth|thorough|comprehensive|trade-?offs|optim(ize|isation)|architecture|design)/i.test(lower)
 
-    if (hasReasoningHints && (hasComplexityHints || lengthScore > 240)) return 'max'
+    if (hasReasoningHints && (hasComplexityHints || lengthScore > 240)) return 'reasoning'
     if (hasReasoningHints || hasComplexityHints || lengthScore > 120) return 'deep'
     return 'general'
   }
@@ -93,27 +93,27 @@ export function ChatInput({
     }
   }, [])
 
-  const handleThinkingModeChange = (value: 'smart' | 'general' | 'deep' | 'max') => {
+  const handleThinkingModeChange = (value: 'smart' | 'general' | 'deep' | 'reasoning') => {
     setThinkingMode(value)
     onThinkingModeChange?.(value)
   }
 
-  const getModeIcon = (mode: 'smart' | 'general' | 'deep' | 'max') => {
+  const getModeIcon = (mode: 'smart' | 'general' | 'deep' | 'reasoning') => {
     switch (mode) {
       case 'smart': return <Zap className="h-3 w-3" />
       case 'general': return <Lightbulb className="h-3 w-3" />
       case 'deep': return <Brain className="h-3 w-3" />
-      case 'max': return <Cog className="h-3 w-3" />
+      case 'reasoning': return <Cog className="h-3 w-3" />
       default: return <Zap className="h-3 w-3" />
     }
   }
 
-  const getModeDisplayText = (mode: 'smart' | 'general' | 'deep' | 'max') => {
+  const getModeDisplayText = (mode: 'smart' | 'general' | 'deep' | 'reasoning') => {
     switch (mode) {
       case 'smart': return 'Smart'
       case 'general': return 'General'
       case 'deep': return 'Deep Thinking'
-      case 'max': return 'Reasoning'
+      case 'reasoning': return 'Reasoning'
       default: return 'Smart'
     }
   }
@@ -206,12 +206,12 @@ export function ChatInput({
                 {thinkingMode === 'deep' && <span className="ml-auto text-blue-600">✓</span>}
               </DropdownMenuItem>
               <DropdownMenuItem 
-                onClick={() => handleThinkingModeChange('max')}
-                className={thinkingMode === 'max' ? 'bg-blue-50 text-blue-600' : ''}
+                onClick={() => handleThinkingModeChange('reasoning')}
+                className={thinkingMode === 'reasoning' ? 'bg-blue-50 text-blue-600' : ''}
               >
                 <Cog className="h-4 w-4 mr-2" />
                 Reasoning (Max Thinking)
-                {thinkingMode === 'max' && <span className="ml-auto text-blue-600">✓</span>}
+                {thinkingMode === 'reasoning' && <span className="ml-auto text-blue-600">✓</span>}
               </DropdownMenuItem>
               
               <DropdownMenuSeparator />
