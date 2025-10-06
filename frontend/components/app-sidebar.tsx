@@ -9,6 +9,7 @@ import {
   SearchIcon,
   SettingsIcon,
   Trash2,
+  Building2Icon,
 } from "lucide-react"
 
 import { NavSecondary } from "@/components/nav-secondary"
@@ -36,6 +37,11 @@ const data = {
     avatar: "/avatars/nithin.jpg",
   },
   navSecondary: [
+    {
+      title: "Architecture",
+      url: "/architecture",
+      icon: Building2Icon,
+    },
     {
       title: "Settings",
       url: "#",
