@@ -12,6 +12,11 @@ const nextConfig = {
       },
     ]
   },
+  // Suppress hydration warnings for browser extension attributes
+  reactStrictMode: true,
+  experimental: {
+    suppressHydrationWarning: true,
+  },
 }
 
 module.exports = nextConfig

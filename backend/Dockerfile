@@ -10,12 +10,30 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PYTHONPATH=/app
 
-# Install system dependencies
+# Install system dependencies including Chrome and ChromeDriver
 RUN apt-get update && apt-get install -y \
     gcc \
     g++ \
     curl \
+    wget \
+    gnupg \
+    unzip \
+    xvfb \
+    ca-certificates \
+    && wget -q -O - https://dl.google.com/linux/linux_signing_key.pub | gpg --dearmor -o /usr/share/keyrings/googlechrome-linux-keyring.gpg \
+    && echo "deb [arch=amd64 signed-by=/usr/share/keyrings/googlechrome-linux-keyring.gpg] http://dl.google.com/linux/chrome/deb/ stable main" >> /etc/apt/sources.list.d/google-chrome.list \
+    && apt-get update \
+    && apt-get install -y google-chrome-stable \
     && rm -rf /var/lib/apt/lists/*
+
+# Install ChromeDriver using the new API
+RUN CHROME_VERSION=$(google-chrome --version | awk '{print $3}' | cut -d'.' -f1-3) \
+    && CHROMEDRIVER_VERSION=$(curl -s "https://googlechromelabs.github.io/chrome-for-testing/LATEST_RELEASE_${CHROME_VERSION}") \
+    && wget -O /tmp/chromedriver.zip "https://storage.googleapis.com/chrome-for-testing-public/${CHROMEDRIVER_VERSION}/linux64/chromedriver-linux64.zip" \
+    && unzip /tmp/chromedriver.zip -d /tmp/ \
+    && mv /tmp/chromedriver-linux64/chromedriver /usr/local/bin/chromedriver \
+    && chmod +x /usr/local/bin/chromedriver \
+    && rm -rf /tmp/chromedriver.zip /tmp/chromedriver-linux64
 
 # Copy requirements first for better caching
 COPY pyproject.toml ./

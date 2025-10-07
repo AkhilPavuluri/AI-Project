@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { useSuppressHydrationWarning } from '@/lib/suppress-hydration'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -25,6 +26,8 @@ import {
 import { scrapeUrl, scrapeGovernmentSite, getScraperHealth, ScrapedData, ScraperHealthResponse } from '@/lib/api'
 
 export default function WebScraperPage() {
+  // Suppress hydration warnings for browser extension attributes
+  useSuppressHydrationWarning()
 
   const [url, setUrl] = useState('')
   const [isScraping, setIsScraping] = useState(false)
