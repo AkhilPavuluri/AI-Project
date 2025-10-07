@@ -9,7 +9,7 @@ import {
   SearchIcon,
   SettingsIcon,
   Trash2,
-  Building2Icon,
+  BookOpenIcon,
 } from "lucide-react"
 
 import { NavSecondary } from "@/components/nav-secondary"
@@ -38,9 +38,9 @@ const data = {
   },
   navSecondary: [
     {
-      title: "Architecture",
-      url: "/architecture",
-      icon: Building2Icon,
+      title: "Documentation",
+      url: "/documentation",
+      icon: BookOpenIcon,
     },
     {
       title: "Settings",

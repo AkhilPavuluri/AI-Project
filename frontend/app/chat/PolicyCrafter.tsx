@@ -2,7 +2,12 @@
 
 import { useState, useEffect, useRef } from 'react'
 import { Button } from '@/components/ui/button'
-import { ArrowLeft, Sparkles, Loader2, FileText, Zap, Shield, Users, MessageSquare, Maximize2, Minimize2, ChevronLeft, ChevronRight, ArrowLeftRight, ZoomIn, ZoomOut, RotateCcw, Download, Printer, Maximize, File, Book, GraduationCap, Plus, Minus, Trash2, Bot, Edit3 } from 'lucide-react'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { modelService } from '@/lib/modelService'
+import { AIModel } from '@/lib/models'
+import { queryModelDirect } from '@/lib/api'
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuRadioGroup, DropdownMenuRadioItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
+import { ArrowLeft, Sparkles, Loader2, FileText, Zap, Shield, Users, MessageSquare, Maximize2, Minimize2, ChevronLeft, ChevronRight, ArrowLeftRight, ZoomIn, ZoomOut, RotateCcw, Download, Printer, Maximize, File, Book, GraduationCap, Plus, Minus, Trash2, Bot, Edit3, AtSign, Globe, Image as ImageIcon, CornerUpRight } from 'lucide-react'
 
 interface PolicyCrafterProps {
   onReturnToChat: () => void
@@ -143,9 +148,372 @@ export function PolicyCrafter({ onReturnToChat }: PolicyCrafterProps) {
   ])
   const [currentPageIndex, setCurrentPageIndex] = useState(0)
   const [zoomTextColor, setZoomTextColor] = useState('text-white')
+  const [pageTextColor, setPageTextColor] = useState('text-gray-900')
   const [micaBackground, setMicaBackground] = useState('bg-gradient-to-br from-white/20 via-white/10 to-white/5')
   const [isAIGenerating, setIsAIGenerating] = useState(false)
   const a4PanelRef = useRef<HTMLDivElement>(null)
+  const [chatMode, setChatMode] = useState<'agent' | 'brainstorm' | 'memory'>('agent')
+  const [availableModels, setAvailableModels] = useState<AIModel[]>([])
+  const [selectedModelId, setSelectedModelId] = useState<string>('')
+  const chatInputRef = useRef<HTMLTextAreaElement>(null)
+  const [usagePercent, setUsagePercent] = useState<number>(0)
+  const MAX_CHARS_PER_PAGE = 1200
+
+  const optimizeMarkdown = (input: string): string => {
+    if (!input) return ''
+    let out = input.replace(/[ \t]+$/gm, '') // trim line-end spaces
+    out = out.replace(/\n{3,}/g, '\n\n') // collapse blank lines
+    out = out.replace(/^\s*[•·]\s+/gm, '- ') // normalize bullets
+    return out.trim()
+  }
+
+  const splitIntoPageChunks = (text: string, max: number): string[] => {
+    if (text.length <= max) return [text]
+    const paragraphs = text.split(/\n\n+/)
+    const chunks: string[] = []
+    let current = ''
+    for (const para of paragraphs) {
+      const candidate = current ? current + '\n\n' + para : para
+      if (candidate.length > max && current) {
+        chunks.push(current)
+        current = para
+      } else if (candidate.length > max) {
+        // paragraph itself too big – hard split
+        let remaining = para
+        while (remaining.length > max) {
+          chunks.push(remaining.slice(0, max))
+          remaining = remaining.slice(max)
+        }
+        current = remaining
+      } else {
+        current = candidate
+      }
+    }
+    if (current) chunks.push(current)
+    return chunks
+  }
+
+  const paginateSectionContent = (pageId: string, sectionId: string) => {
+    setPages(prev => {
+      const pagesCopy = [...prev]
+      const pageIndex = pagesCopy.findIndex(p => p.id === pageId)
+      if (pageIndex < 0) return prev
+      const page = pagesCopy[pageIndex]
+      if (!page.editableFields?.sections) return prev
+      const section = page.editableFields.sections.find(s => s.id === sectionId)
+      if (!section) return prev
+      const optimized = optimizeMarkdown(section.content || '')
+      // Measure using DOM: if content exceeds visible area, fallback to chunking
+      const a4Node = document.querySelector(`[data-page-id="${pageId}"]`) as HTMLElement | null
+      if (a4Node) {
+        // temp inject content to measure
+        const sandbox = document.createElement('div')
+        sandbox.style.position = 'absolute'
+        sandbox.style.visibility = 'hidden'
+        sandbox.style.pointerEvents = 'none'
+        sandbox.style.width = getComputedStyle(a4Node).width
+        sandbox.style.padding = getComputedStyle(a4Node).padding
+        sandbox.style.fontSize = '14px'
+        sandbox.innerText = optimized
+        a4Node.appendChild(sandbox)
+        const exceeds = sandbox.scrollHeight > a4Node.clientHeight
+        a4Node.removeChild(sandbox)
+        if (!exceeds && optimized.length <= MAX_CHARS_PER_PAGE) {
+          section.content = optimized
+          return pagesCopy
+        }
+      }
+      const chunks = splitIntoPageChunks(optimized, MAX_CHARS_PER_PAGE)
+      section.content = chunks[0] || ''
+      for (let i = 1; i < chunks.length; i++) {
+        const newPage: Page = {
+          id: `${Date.now()}-${i}-${Math.random().toString(36).slice(2,6)}`,
+          title: (page.editableFields?.title || page.title) + ` (cont. ${i})`,
+          content: '',
+          template: page.template || 'none',
+          editableFields: {
+            title: (page.editableFields?.title || page.title) + ` (cont. ${i})`,
+            subtitle: page.editableFields?.subtitle,
+            version: page.editableFields?.version,
+            sections: [
+              {
+                id: `section-${Date.now()}-${i}`,
+                sectionTitle: (section.sectionTitle || 'Section') + ` (cont. ${i})`,
+                content: chunks[i]
+              }
+            ]
+          }
+        }
+        pagesCopy.splice(pageIndex + i, 0, newPage)
+      }
+      return pagesCopy
+    })
+  }
+  const focusPageById = (pageId?: string) => {
+    if (!pageId) return
+    setPages(prev => {
+      const idx = prev.findIndex(p => p.id === pageId)
+      if (idx >= 0) {
+        setCurrentPageIndex(idx)
+      }
+      return prev
+    })
+  }
+  type ChatAction = {
+    op: 'add' | 'update' | 'delete'
+    target: 'section' | 'page'
+    pageId?: string
+    sectionId?: string
+    title?: string
+    content?: string
+    index?: number
+  }
+  type ChatEntry = {
+    id: string
+    role: 'user' | 'assistant'
+    question?: string
+    understood?: string
+    actions?: ChatAction[]
+    applied?: string[]
+    raw?: string
+    timestamp: number
+  }
+  const [messages, setMessages] = useState<ChatEntry[]>([])
+
+  useEffect(() => {
+    // Load available models from local and cloud providers
+    modelService.getAllModels().then(models => {
+      setAvailableModels(models)
+      if (models.length > 0) {
+        setSelectedModelId(models[0].id)
+      }
+    }).catch(err => {
+      console.error('Failed to load models:', err)
+    })
+  }, [])
+
+  const sendPromptWithModel = async (prompt: string, pageId: string, sectionId?: string) => {
+    if (!selectedModelId) return
+    setIsAIGenerating(true)
+    setUsagePercent(23)
+    try {
+      const { answer } = await queryModelDirect(prompt, selectedModelId, [
+        { role: 'user', content: prompt }
+      ])
+      if (sectionId) {
+        updateSectionContent(pageId, sectionId, answer)
+      } else {
+        const sectionNewId = `section-${Date.now()}`
+        setPages(prev => prev.map(p => {
+          if (p.id === pageId) {
+            const updated = { ...p, isEdited: true }
+            if (!updated.editableFields) updated.editableFields = { sections: [] }
+            if (!updated.editableFields.sections) updated.editableFields.sections = []
+            updated.editableFields.sections.push({ id: sectionNewId, sectionTitle: 'New Section', content: optimizeMarkdown(answer) })
+            return updated
+          }
+          return p
+        }))
+        setTimeout(() => paginateSectionContent(pageId, sectionNewId), 0)
+      }
+    } catch (e) {
+      console.error('Model generation failed:', e)
+    } finally {
+      setIsAIGenerating(false)
+      setUsagePercent(0)
+    }
+  }
+
+  const handleSend = () => {
+    const input = chatInputRef.current
+    if (input && input.value.trim() && pages.length > 0) {
+      const questionText = input.value.trim()
+      const userEntry: ChatEntry = {
+        id: `m-${Date.now()}`,
+        role: 'user',
+        question: questionText,
+        timestamp: Date.now()
+      }
+      setMessages(prev => [...prev, userEntry])
+      input.value = ''
+      runUnderstandingAndApply(questionText)
+    }
+  }
+
+  const runUnderstandingAndApply = async (prompt: string) => {
+    setIsAIGenerating(true)
+    try {
+      const systemInstruction = `You are a policy editing assistant.
+Return a strict JSON object with keys:\n{
+  "understanding": string, // a concise interpretation of the user's request
+  "actions": [ // minimal CRUD operations for the policy document
+    {
+      "op": "add|update|delete",
+      "target": "section|page",
+      "pageId": string, // required for section ops; for page add can be omitted
+      "sectionId": string, // for section ops
+      "title": string, // optional new title for page or section title
+      "content": string, // optional content for section
+      "index": number // optional index for insert
+    }
+  ]
+}
+Only output JSON with no prose. If nothing to change, use actions: [].`
+
+      const { answer } = await queryModelDirect(
+        `${systemInstruction}\n\nUser: ${prompt}`,
+        selectedModelId,
+        [{ role: 'user', content: `${systemInstruction}\n\nUser: ${prompt}` }]
+      )
+
+      const parsed = safeParseJSON(answer)
+      const understanding: string = parsed?.understanding || 'No structured understanding returned.'
+      const actions: ChatAction[] = Array.isArray(parsed?.actions) ? parsed.actions : []
+      let appliedSummaries: string[] = []
+      if (actions.length > 0) {
+        appliedSummaries = applyCrudActions(actions)
+      } else {
+        const currentPage = pages[currentPageIndex]
+        if (currentPage) {
+          if (currentPage.editableFields?.sections && currentPage.editableFields.sections.length > 0) {
+            await sendPromptWithModel(prompt, currentPage.id, currentPage.editableFields.sections[0].id)
+            appliedSummaries = ["Generated content for the current page's first section"]
+          } else {
+            await sendPromptWithModel(prompt, currentPage.id)
+            appliedSummaries = ["Created a new section and generated content"]
+          }
+          focusPageById(currentPage.id)
+        }
+      }
+
+      const assistantEntry: ChatEntry = {
+        id: `a-${Date.now()}`,
+        role: 'assistant',
+        understood: understanding,
+        actions,
+        applied: appliedSummaries,
+        raw: answer,
+        timestamp: Date.now()
+      }
+      setMessages(prev => [...prev, assistantEntry])
+    } catch (e) {
+      console.error('Understanding/apply failed:', e)
+      const assistantEntry: ChatEntry = {
+        id: `a-${Date.now()}`,
+        role: 'assistant',
+        understood: 'Failed to process your request.',
+        applied: [],
+        raw: String(e),
+        timestamp: Date.now()
+      }
+      setMessages(prev => [...prev, assistantEntry])
+    } finally {
+      setIsAIGenerating(false)
+    }
+  }
+
+  const safeParseJSON = (text: string): any => {
+    try {
+      return JSON.parse(text)
+    } catch {}
+    try {
+      const m = text.match(/```json[\s\S]*?```/i)
+      if (m) {
+        const inner = m[0].replace(/```json|```/g, '')
+        return JSON.parse(inner)
+      }
+    } catch {}
+    try {
+      const start = text.indexOf('{')
+      const end = text.lastIndexOf('}')
+      if (start >= 0 && end > start) {
+        return JSON.parse(text.slice(start, end + 1))
+      }
+    } catch {}
+    return null
+  }
+
+  const applyCrudActions = (actions: ChatAction[]): string[] => {
+    if (!actions || actions.length === 0) return []
+    const summaries: string[] = []
+    let lastAffectedPageId: string | undefined
+    setPages(prev => {
+      let newPages = [...prev]
+      for (const action of actions) {
+        if (action.target === 'page') {
+          if (action.op === 'add') {
+            const newPage: Page = {
+              id: Date.now().toString() + Math.random().toString(36).slice(2, 7),
+              title: action.title || `Page ${newPages.length + 1}`,
+              content: '',
+              template: 'none',
+              editableFields: initializeEditableFields('none')
+            }
+            if (typeof action.index === 'number' && action.index >= 0 && action.index <= newPages.length) {
+              newPages = [...newPages.slice(0, action.index), newPage, ...newPages.slice(action.index)]
+            } else {
+              newPages = [...newPages, newPage]
+            }
+            summaries.push(`Added page "${newPage.title}"`)
+            lastAffectedPageId = newPage.id
+          } else if (action.op === 'update' && action.pageId) {
+            newPages = newPages.map(p => p.id === action.pageId ? {
+              ...p,
+              title: action.title || p.title,
+              isEdited: true
+            } : p)
+            summaries.push(`Updated page ${action.pageId}`)
+            lastAffectedPageId = action.pageId
+          } else if (action.op === 'delete' && action.pageId) {
+            newPages = newPages.filter(p => p.id !== action.pageId)
+            summaries.push(`Deleted page ${action.pageId}`)
+            lastAffectedPageId = undefined
+          }
+        }
+        if (action.target === 'section') {
+          const effectivePageId = action.pageId || (newPages[currentPageIndex]?.id || '')
+          if (!effectivePageId) { continue }
+          newPages = newPages.map(p => {
+            if (p.id !== effectivePageId) return p
+            const updated = { ...p, isEdited: true }
+            if (!updated.editableFields) updated.editableFields = { sections: [] }
+            if (!updated.editableFields.sections) updated.editableFields.sections = []
+            if (action.op === 'add') {
+              const newId = `section-${Date.now()}-${Math.random().toString(36).slice(2, 5)}`
+              const section = { id: newId, sectionTitle: action.title || 'New Section', content: action.content || '' }
+              const idx = typeof action.index === 'number' ? Math.max(0, Math.min(action.index, updated.editableFields.sections.length)) : updated.editableFields.sections.length
+              updated.editableFields.sections = [
+                ...updated.editableFields.sections.slice(0, idx),
+                section,
+                ...updated.editableFields.sections.slice(idx)
+              ]
+              summaries.push(`Added section "${section.sectionTitle}" to page ${p.id}`)
+              lastAffectedPageId = p.id
+            } else if (action.op === 'update' && action.sectionId) {
+              updated.editableFields.sections = updated.editableFields.sections.map(s => s.id === action.sectionId ? {
+                ...s,
+                sectionTitle: action.title || s.sectionTitle,
+                content: action.content !== undefined ? optimizeMarkdown(action.content) : s.content
+              } : s)
+              summaries.push(`Updated section ${action.sectionId}`)
+              lastAffectedPageId = p.id
+              } else if (action.op === 'delete' && action.sectionId) {
+              updated.editableFields.sections = updated.editableFields.sections.filter(s => s.id !== action.sectionId)
+              summaries.push(`Deleted section ${action.sectionId}`)
+              lastAffectedPageId = p.id
+            }
+            return updated
+          })
+        }
+      }
+      if (lastAffectedPageId) {
+        const idx = newPages.findIndex(p => p.id === lastAffectedPageId)
+        if (idx >= 0) setCurrentPageIndex(idx)
+      }
+      return newPages
+    })
+    return summaries
+  }
 
   useEffect(() => {
     // Simulate loading time
@@ -178,6 +546,7 @@ export function PolicyCrafter({ onReturnToChat }: PolicyCrafterProps) {
         const backgroundColor = getBackgroundColor(a4PanelRef.current)
         const textColor = getTextColorForBackground(backgroundColor)
         setZoomTextColor(textColor)
+        setPageTextColor(textColor)
       }
       
       // Update mica background based on theme
@@ -406,12 +775,14 @@ export function PolicyCrafter({ onReturnToChat }: PolicyCrafterProps) {
       
       if (updatedPage.editableFields.sections) {
         updatedPage.editableFields.sections = updatedPage.editableFields.sections.map(section =>
-          section.id === sectionId ? { ...section, content: newContent } : section
+          section.id === sectionId ? { ...section, content: optimizeMarkdown(newContent) } : section
         )
       }
       
       return updatedPage
     }))
+    // paginate after state commit
+    setTimeout(() => paginateSectionContent(pageId, sectionId), 0)
   }
 
   const generateWithAI = async (pageId: string, fieldType: 'title' | 'subtitle' | 'version' | 'section', prompt: string, sectionId?: string) => {
@@ -518,6 +889,7 @@ export function PolicyCrafter({ onReturnToChat }: PolicyCrafterProps) {
           transform: `scale(${zoomLevel / 100}) rotate(${rotation}deg)`,
           transformOrigin: 'center'
         }}
+        data-page-id={page.id}
       >
         {/* Delete Button - Top Right */}
         {pages.length > 1 && (
@@ -533,12 +905,12 @@ export function PolicyCrafter({ onReturnToChat }: PolicyCrafterProps) {
         )}
         <div className="h-full flex flex-col">
           {/* Document Content */}
-          <div className="flex-1 space-y-4 text-gray-800 text-sm leading-relaxed">
+          <div className={`flex-1 space-y-4 ${pageTextColor} text-sm leading-relaxed`}>
             {/* Editable Title */}
             <div className="text-center border-b pb-4 mb-6">
               <div className="group cursor-pointer hover:bg-blue-50/50 rounded-lg p-2 -m-2 transition-colors">
                 <h1 
-                  className="text-xl font-bold text-gray-900 group-hover:text-blue-600 transition-colors"
+                  className="text-xl font-bold text-gray-900 group-hover:text-blue-600 transition-colors outline-none focus:outline-none focus:ring-0"
                   contentEditable
                   suppressContentEditableWarning={true}
                   onBlur={(e) => {
@@ -561,7 +933,7 @@ export function PolicyCrafter({ onReturnToChat }: PolicyCrafterProps) {
               {/* Editable Subtitle */}
               <div className="group cursor-pointer hover:bg-blue-50/50 rounded-lg p-2 -m-2 transition-colors">
                 <p 
-                  className="text-xs text-gray-600 mt-1 group-hover:text-blue-600 transition-colors"
+                  className="text-xs text-gray-600 mt-1 group-hover:text-blue-600 transition-colors outline-none focus:outline-none focus:ring-0"
                   contentEditable
                   suppressContentEditableWarning={true}
                   onBlur={(e) => {
@@ -584,7 +956,7 @@ export function PolicyCrafter({ onReturnToChat }: PolicyCrafterProps) {
               {/* Editable Version */}
               <div className="group cursor-pointer hover:bg-blue-50/50 rounded-lg p-2 -m-2 transition-colors">
                 <p 
-                  className="text-xs text-gray-500 mt-1 group-hover:text-blue-600 transition-colors"
+                  className="text-xs text-gray-500 mt-1 group-hover:text-blue-600 transition-colors outline-none focus:outline-none focus:ring-0"
                   contentEditable
                   suppressContentEditableWarning={true}
                   onBlur={(e) => {
@@ -614,22 +986,54 @@ export function PolicyCrafter({ onReturnToChat }: PolicyCrafterProps) {
                       {section.sectionTitle}
                     </h3>
                     <div 
-                      className="group cursor-pointer hover:bg-blue-50/50 rounded-lg p-3 -m-3 transition-colors"
+                      className="group rounded-lg p-3 -m-3"
                     >
                       <div 
-                        className="text-gray-700 whitespace-pre-line group-hover:text-blue-600 transition-colors"
+                        className="text-gray-700 whitespace-pre-line outline-none focus:outline-none focus:ring-0"
                         contentEditable
                         suppressContentEditableWarning={true}
+                        onKeyDown={(e) => {
+                          const el = e.currentTarget as HTMLElement
+                          if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+                            e.preventDefault()
+                            // Insert new section after
+                            const newSectionId = `section-${Date.now()}`
+                            setPages(prev => prev.map(p => {
+                              if (p.id === page.id) {
+                                const updated = { ...p, isEdited: true }
+                                if (!updated.editableFields) updated.editableFields = { sections: [] }
+                                if (!updated.editableFields.sections) updated.editableFields.sections = []
+                                const pos = updated.editableFields.sections.findIndex(s => s.id === section.id)
+                                updated.editableFields.sections = [
+                                  ...updated.editableFields.sections.slice(0, pos + 1),
+                                  { id: newSectionId, sectionTitle: 'New Section', content: '' },
+                                  ...updated.editableFields.sections.slice(pos + 1)
+                                ]
+                                return updated
+                              }
+                              return p
+                            }))
+                          }
+                          if (e.key === 'Delete' && e.shiftKey) {
+                            const text = el.textContent || ''
+                            if (!text.trim()) {
+                              e.preventDefault()
+                              setPages(prev => prev.map(p => {
+                                if (p.id === page.id) {
+                                  const updated = { ...p, isEdited: true }
+                                  if (!updated.editableFields?.sections) return p
+                                  updated.editableFields.sections = updated.editableFields.sections.filter(s => s.id !== section.id)
+                                  return updated
+                                }
+                                return p
+                              }))
+                            }
+                          }
+                        }}
                         onBlur={(e) => {
                           const newContent = e.currentTarget.textContent || ''
                           if (newContent !== section.content) {
                             updateSectionContent(page.id, section.id, newContent)
-                          }
-                        }}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter' && !e.shiftKey) {
-                            e.preventDefault()
-                            e.currentTarget.blur()
                           }
                         }}
                       >
@@ -808,115 +1212,132 @@ export function PolicyCrafter({ onReturnToChat }: PolicyCrafterProps) {
               
               {/* Chat Messages */}
               <div className="flex-1 overflow-y-auto premium-scrollbar p-3 space-y-4">
-                <div className="flex gap-2">
-                  <div className="w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
-                    <MessageSquare className="w-3 h-3 text-primary" />
+                {messages.length === 0 ? (
+                  <div className="bg-background rounded-lg p-3 text-sm border">
+                    <div className="text-[11px] uppercase tracking-wide text-muted-foreground mb-1">Welcome</div>
+                    <div>Ask a question about your policy. I will show what I understood and apply only the necessary changes to the A4 document.</div>
                   </div>
-                  <div className="bg-background rounded-lg p-3 text-sm">
-                    <p>Hello! I'm your Policy Assistant. I can help you:</p>
-                    <ul className="mt-2 space-y-1 text-xs text-muted-foreground">
-                      <li>• Draft policy sections</li>
-                      <li>• Review compliance requirements</li>
-                      <li>• Suggest improvements</li>
-                      <li>• Answer policy questions</li>
-                    </ul>
-                  </div>
-                </div>
-                
-                <div className="flex gap-2">
-                  <div className="w-6 h-6 rounded-full bg-muted flex items-center justify-center flex-shrink-0">
-                    <span className="text-xs">U</span>
-                  </div>
-                  <div className="bg-primary/5 rounded-lg p-3 text-sm">
-                    <p>How can I help you with your policy document today?</p>
-                  </div>
-                </div>
+                ) : (
+                  messages.map(msg => (
+                    <div key={msg.id} className="space-y-2">
+                      {msg.role === 'user' && msg.question && (
+                        <div className="bg-background rounded-lg p-3 text-sm border">
+                          <div className="text-[11px] uppercase tracking-wide text-muted-foreground mb-1">Question</div>
+                          <div className="whitespace-pre-wrap">{msg.question}</div>
+                        </div>
+                      )}
+                      {msg.role === 'assistant' && (
+                        <div className="bg-background rounded-lg p-3 text-sm border">
+                          <div className="text-[11px] uppercase tracking-wide text-muted-foreground mb-1">Understood</div>
+                          <div className="mb-2 whitespace-pre-wrap">{msg.understood}</div>
+                          {msg.applied && msg.applied.length > 0 && (
+                            <div className="mt-2">
+                              <div className="text-[11px] uppercase tracking-wide text-muted-foreground mb-1">Applied changes</div>
+                              <ul className="list-disc pl-5 text-xs space-y-1">
+                                {msg.applied.map((a, i) => (
+                                  <li key={i}>{a}</li>
+                                ))}
+                              </ul>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  ))
+                )}
               </div>
               
               {/* Chat Input */}
               <div className="border-t bg-background/80 backdrop-blur-sm p-3">
-                <div className="flex gap-2">
-                  <input
-                    type="text"
-                    placeholder="Ask about policy drafting..."
-                    className="flex-1 px-3 py-2 text-sm border rounded-lg bg-background focus:outline-none focus:ring-2 focus:ring-primary/20"
-                    onKeyPress={(e) => {
-                      if (e.key === 'Enter') {
-                        const input = e.target as HTMLInputElement
-                        if (input.value.trim() && pages.length > 0) {
-                          // Generate content for the first section or create a new section
-                          const currentPage = pages[currentPageIndex]
-                          if (currentPage.editableFields?.sections && currentPage.editableFields.sections.length > 0) {
-                            generateWithAI(currentPage.id, 'section', input.value, currentPage.editableFields.sections[0].id)
-                          } else {
-                            // Create a new section for blank templates
-                            const newSectionId = `section-${Date.now()}`
-                            setPages(prev => prev.map(page => {
-                              if (page.id === currentPage.id) {
-                                const updatedPage = { ...page, isEdited: true }
-                                if (!updatedPage.editableFields) {
-                                  updatedPage.editableFields = { sections: [] }
-                                }
-                                if (!updatedPage.editableFields.sections) {
-                                  updatedPage.editableFields.sections = []
-                                }
-                                updatedPage.editableFields.sections.push({
-                                  id: newSectionId,
-                                  sectionTitle: 'New Section',
-                                  content: ''
-                                })
-                                return updatedPage
-                              }
-                              return page
-                            }))
-                            generateWithAI(currentPage.id, 'section', input.value, newSectionId)
-                          }
-                          input.value = ''
+                <div className="rounded-xl border bg-background">
+                  {/* Top control row */}
+                  <div className="flex items-center justify-between px-2 py-1.5">
+                    <div className="flex items-center gap-2">
+                      <Button variant="ghost" size="icon" className="h-7 w-7">
+                        <AtSign className="w-4 h-4" />
+                      </Button>
+                      <button className="text-xs px-2 py-1 rounded-full border bg-muted/50 hover:bg-muted transition-colors inline-flex items-center gap-1">
+                        <Plus className="w-3 h-3" />
+                        Browser
+                      </button>
+                    </div>
+                    <div className="text-[11px] text-muted-foreground inline-flex items-center gap-1">
+                      {usagePercent > 0 ? `${usagePercent}%` : ''}
+                      <Zap className="w-3 h-3 opacity-70" />
+                    </div>
+                  </div>
+                  {/* Text area */}
+                  <div className="px-3 pb-2">
+                    <textarea
+                      ref={chatInputRef}
+                      rows={1}
+                      placeholder="Plan, search, build anything"
+                      className="w-full resize-none bg-transparent outline-none text-sm min-h-[40px] max-h-40 py-1"
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' && !e.shiftKey) {
+                          e.preventDefault()
+                          handleSend()
                         }
-                      }
-                    }}
-                  />
-                  <Button 
-                    size="sm" 
-                    className="px-3"
-                    onClick={() => {
-                      const input = document.querySelector('input[placeholder="Ask about policy drafting..."]') as HTMLInputElement
-                      if (input?.value.trim() && pages.length > 0) {
-                        const currentPage = pages[currentPageIndex]
-                        if (currentPage.editableFields?.sections && currentPage.editableFields.sections.length > 0) {
-                          generateWithAI(currentPage.id, 'section', input.value, currentPage.editableFields.sections[0].id)
-                        } else {
-                          // Create a new section for blank templates
-                          const newSectionId = `section-${Date.now()}`
-                          setPages(prev => prev.map(page => {
-                            if (page.id === currentPage.id) {
-                              const updatedPage = { ...page, isEdited: true }
-                              if (!updatedPage.editableFields) {
-                                updatedPage.editableFields = { sections: [] }
-                              }
-                              if (!updatedPage.editableFields.sections) {
-                                updatedPage.editableFields.sections = []
-                              }
-                              updatedPage.editableFields.sections.push({
-                                id: newSectionId,
-                                sectionTitle: 'New Section',
-                                content: ''
-                              })
-                              return updatedPage
-                            }
-                            return page
-                          }))
-                          generateWithAI(currentPage.id, 'section', input.value, newSectionId)
-                        }
-                        input.value = ''
-                      }
-                    }}
-                  >
-                    <MessageSquare className="w-4 h-4" />
-                  </Button>
+                      }}
+                    />
+                  </div>
+                  {/* Bottom control row */}
+                  <div className="flex items-center justify-between px-2 pb-2">
+                    <div className="flex items-center gap-2">
+                      {/* Mode pill dropdown */}
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <button
+                            className="px-3 h-7 rounded-full border text-xs bg-background hover:bg-accent/50 transition-colors whitespace-nowrap inline-flex items-center gap-2"
+                            aria-label="Select chat mode"
+                          >
+                            <span className="text-primary">∞</span>
+                            {chatMode === 'agent' && 'Agent'}
+                            {chatMode === 'brainstorm' && 'Brainstorm'}
+                            {chatMode === 'memory' && 'Chat w/ memory + policy'}
+                            <span className="text-[10px] text-muted-foreground ml-1">Ctrl+I</span>
+                          </button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="start" className="w-64">
+                          <DropdownMenuRadioGroup value={chatMode} onValueChange={(v) => setChatMode(v as any)}>
+                            <DropdownMenuRadioItem value="agent">Agent</DropdownMenuRadioItem>
+                            <DropdownMenuRadioItem value="brainstorm">Brainstorm</DropdownMenuRadioItem>
+                            <DropdownMenuRadioItem value="memory">Chat with memory and active policy context</DropdownMenuRadioItem>
+                          </DropdownMenuRadioGroup>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                      {/* Model selector styled like "Auto" */}
+                      <Select value={selectedModelId} onValueChange={(v) => setSelectedModelId(v)}>
+                        <SelectTrigger className="h-7 w-[9rem] rounded-full px-3 text-xs">
+                          <SelectValue placeholder="Auto" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {availableModels.length === 0 ? (
+                            <SelectItem value="no-models" disabled>
+                              No models available
+                            </SelectItem>
+                          ) : (
+                            availableModels.map(m => (
+                              <SelectItem key={m.id} value={m.id}>
+                                {m.name}
+                              </SelectItem>
+                            ))
+                          )}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <Button variant="ghost" size="icon" className="h-7 w-7">
+                        <ImageIcon className="w-4 h-4" />
+                      </Button>
+                      <Button size="icon" className="h-8 w-8 rounded-full" onClick={handleSend} disabled={isAIGenerating}>
+                        <CornerUpRight className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  </div>
                 </div>
                 <div className="mt-2 text-xs text-muted-foreground">
-                  Press Enter or click to generate content for current page
+                  {isAIGenerating ? 'Generating with ' + (availableModels.find(m => m.id === selectedModelId)?.name || 'model') + '...' : 'Shift+Enter for newline · Enter to send'}
                 </div>
               </div>
             </div>

@@ -1,7 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import { useSuppressHydrationWarning } from '@/lib/suppress-hydration'
+import { useState, useEffect, useRef } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -26,8 +25,6 @@ import {
 import { scrapeUrl, scrapeGovernmentSite, getScraperHealth, ScrapedData, ScraperHealthResponse } from '@/lib/api'
 
 export default function WebScraperPage() {
-  // Suppress hydration warnings for browser extension attributes
-  useSuppressHydrationWarning()
 
   const [url, setUrl] = useState('')
   const [isScraping, setIsScraping] = useState(false)
@@ -38,25 +35,43 @@ export default function WebScraperPage() {
   const [scraperHealth, setScraperHealth] = useState<ScraperHealthResponse | null>(null)
   const [error, setError] = useState<string | null>(null)
 
+  // Track mounted state and single health fetch
+  const isMountedRef = useRef(true)
+  const healthAbortRef = useRef<AbortController | null>(null)
+
   // Load scraper health on component mount
   useEffect(() => {
-    loadScraperHealth()
+    isMountedRef.current = true
+    healthAbortRef.current = new AbortController()
+    loadScraperHealth(healthAbortRef.current.signal)
+    return () => {
+      isMountedRef.current = false
+      healthAbortRef.current?.abort()
+    }
   }, [])
 
-  const loadScraperHealth = async () => {
+  const loadScraperHealth = async (signal?: AbortSignal) => {
     try {
-      const health = await getScraperHealth()
-      setScraperHealth(health)
+      const health = await getScraperHealth({ signal })
+      if (isMountedRef.current) setScraperHealth(health)
     } catch (error) {
       console.error('Failed to load scraper health:', error)
     }
   }
 
+  const scrapeAbortRef = useRef<AbortController | null>(null)
   const handleScrape = async () => {
     if (!url.trim()) return
+    if (isScraping) return
 
     setIsScraping(true)
     setError(null)
+    scrapeAbortRef.current?.abort()
+    scrapeAbortRef.current = new AbortController()
+    const signal = scrapeAbortRef.current.signal
+    const timeoutId = setTimeout(() => {
+      scrapeAbortRef.current?.abort()
+    }, 45000)
     
     // Create initial processing entry
     const processingEntry: ScrapedData = {
@@ -85,22 +100,24 @@ export default function WebScraperPage() {
           site_type: detectGovernmentSiteType(url.trim()),
           extract_pdfs: true,
           extract_acts: true
-        })
+        }, { signal })
       } else {
         // Use regular scraping
         result = await scrapeUrl({
           url: url.trim(),
           method: scrapingMethod,
           max_retries: 3
-        })
+        }, { signal })
       }
 
-      setCurrentData(result)
-      setScrapedData(prev => [result, ...prev])
+      if (isMountedRef.current) {
+        setCurrentData(result)
+        setScrapedData(prev => [result, ...prev])
+      }
       
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred'
-      setError(errorMessage)
+      if (isMountedRef.current) setError(errorMessage)
       
       const errorData: ScrapedData = {
         url: url.trim(),
@@ -116,11 +133,16 @@ export default function WebScraperPage() {
         processing_time: 0
       }
       
-      setCurrentData(errorData)
-      setScrapedData(prev => [errorData, ...prev])
+      if (isMountedRef.current) {
+        setCurrentData(errorData)
+        setScrapedData(prev => [errorData, ...prev])
+      }
     } finally {
-      setIsScraping(false)
-      setUrl('')
+      clearTimeout(timeoutId)
+      if (isMountedRef.current) {
+        setIsScraping(false)
+        setUrl('')
+      }
     }
   }
 
@@ -134,6 +156,7 @@ export default function WebScraperPage() {
   }
 
   const handleStop = () => {
+    scrapeAbortRef.current?.abort()
     setIsScraping(false)
     setCurrentData(null)
   }
@@ -180,7 +203,7 @@ export default function WebScraperPage() {
   }
 
   return (
-    <div className="min-h-screen bg-background p-6">
+    <div className="min-h-screen bg-background p-6" suppressHydrationWarning>
       <div className="max-w-6xl mx-auto space-y-6">
         {/* Header */}
         <div className="flex items-center justify-between">
@@ -221,6 +244,7 @@ export default function WebScraperPage() {
                 onKeyDown={(e) => e.key === 'Enter' && !isScraping && handleScrape()}
                 disabled={isScraping}
                 className="flex-1"
+                suppressHydrationWarning
               />
               {isScraping ? (
                 <Button onClick={handleStop} variant="destructive">
@@ -341,7 +365,7 @@ export default function WebScraperPage() {
               <div>
                 <label className="text-sm font-medium text-muted-foreground">URL</label>
                 <div className="flex items-center gap-2 mt-1">
-                  <Input value={currentData.url} readOnly className="bg-muted" />
+                  <Input value={currentData.url} readOnly className="bg-muted" suppressHydrationWarning />
                   <Button size="sm" variant="outline" onClick={() => window.open(currentData.url, '_blank')}>
                     <ExternalLink className="h-4 w-4" />
                   </Button>
@@ -351,7 +375,7 @@ export default function WebScraperPage() {
               {/* Title */}
               <div>
                 <label className="text-sm font-medium text-muted-foreground">Title</label>
-                <Input value={currentData.title} readOnly className="bg-muted mt-1" />
+                <Input value={currentData.title} readOnly className="bg-muted mt-1" suppressHydrationWarning />
               </div>
 
               {/* Content */}
@@ -362,6 +386,7 @@ export default function WebScraperPage() {
                   readOnly 
                   className="bg-muted mt-1 min-h-32" 
                   placeholder="Content will appear here..."
+                  suppressHydrationWarning
                 />
               </div>
 
@@ -444,6 +469,7 @@ export default function WebScraperPage() {
                   value={new Date(currentData.timestamp).toLocaleString()} 
                   readOnly 
                   className="bg-muted mt-1" 
+                  suppressHydrationWarning
                 />
               </div>
             </CardContent>

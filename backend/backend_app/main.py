@@ -62,13 +62,13 @@ async def root():
 @app.get("/health")
 async def health_check():
     """Health check endpoint for monitoring"""
-    from backend_app.services.chromadb_service import ChromaDBService
+    from backend_app.services.pinecone_service import PineconeService
     from backend_app.services.ollama_service import OllamaService
     
     try:
-        # Check ChromaDB health
-        chromadb_service = ChromaDBService()
-        chromadb_health = await chromadb_service.health_check()
+        # Check Pinecone health
+        pinecone_service = PineconeService()
+        pinecone_health = await pinecone_service.health_check()
         
         # Check Ollama health
         ollama_service = OllamaService()
@@ -78,13 +78,13 @@ async def health_check():
             "status": "healthy",
             "services": {
                 "api": "running",
-                "vector_db": "connected" if chromadb_health.get('chromadb', {}).get('status') == 'connected' else "not_connected",
+                "vector_db": "connected" if pinecone_health.get('pinecone', {}).get('status') == 'connected' else "not_connected",
                 "llm_service": "connected" if ollama_health.get('ollama', {}).get('status') == 'connected' else "not_connected",
                 "search_engine": "not_connected",  # TODO: Implement search engine
                 "knowledge_graph": "not_connected",  # TODO: Implement knowledge graph
             },
             "details": {
-                "chromadb": chromadb_health,
+                "pinecone": pinecone_health,
                 "ollama": ollama_health
             }
         }

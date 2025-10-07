@@ -8,7 +8,7 @@ to demonstrate the system functionality.
 
 import asyncio
 import logging
-from backend_app.services.chromadb_service import ChromaDBService
+from backend_app.services.pinecone_service import PineconeService
 from datetime import datetime
 
 # Configure logging
@@ -294,32 +294,32 @@ SAMPLE_DOCUMENTS = [
 ]
 
 async def ingest_sample_documents():
-    """Ingest sample documents into ChromaDB"""
+    """Ingest sample documents into Pinecone"""
     try:
         logger.info("Starting sample document ingestion...")
         
-        # Initialize ChromaDB service
-        chromadb_service = ChromaDBService()
+        # Initialize Pinecone service
+        pinecone_service = PineconeService()
         
-        # Check ChromaDB health
-        health = await chromadb_service.health_check()
-        logger.info(f"ChromaDB health: {health}")
+        # Check Pinecone health
+        health = await pinecone_service.health_check()
+        logger.info(f"Pinecone health: {health}")
         
         # Add sample documents
-        doc_ids = await chromadb_service.batch_add_documents(SAMPLE_DOCUMENTS)
+        doc_ids = await pinecone_service.batch_add_documents(SAMPLE_DOCUMENTS)
         
         logger.info(f"Successfully ingested {len(doc_ids)} documents")
         logger.info(f"Document IDs: {doc_ids}")
         
         # Get collection stats
-        stats = await chromadb_service.get_collection_stats()
+        stats = await pinecone_service.get_collection_stats()
         logger.info(f"Collection stats: {stats}")
         
         # Test search functionality
         test_query = "What are the admission requirements for B.Tech programs?"
         logger.info(f"Testing search with query: {test_query}")
         
-        search_results = await chromadb_service.search_similar(test_query, top_k=3)
+        search_results = await pinecone_service.search_similar(test_query, top_k=3)
         logger.info(f"Search results: {len(search_results)} documents found")
         
         for i, result in enumerate(search_results):

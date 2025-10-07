@@ -10,18 +10,18 @@ from typing import List, Dict, Any
 import asyncio
 import os
 from datetime import datetime
-from backend_app.services.chromadb_service import ChromaDBService
+from backend_app.services.pinecone_service import PineconeService
 
 logger = logging.getLogger(__name__)
 
 class RetrievalService:
-    """Service for document retrieval using ChromaDB vector database"""
+    """Service for document retrieval using Pinecone vector database"""
     
     def __init__(self):
-        """Initialize retrieval service with ChromaDB integration"""
-        self.chromadb_service = ChromaDBService()
+        """Initialize retrieval service with Pinecone integration"""
+        self.vector_service = PineconeService()
         
-        logger.info("RetrievalService initialized with ChromaDB integration")
+        logger.info("RetrievalService initialized with Pinecone integration")
     
     async def detect_language(self, query: str) -> str:
         """
@@ -48,7 +48,7 @@ class RetrievalService:
     
     async def dense_retrieval(self, query: str, top_k: int = 10) -> List[str]:
         """
-        Perform dense retrieval using ChromaDB vector similarity search.
+        Perform dense retrieval using Pinecone vector similarity search.
         
         Args:
             query: Search query text
@@ -60,8 +60,8 @@ class RetrievalService:
         logger.info(f"Performing dense retrieval for query: {query[:50]}...")
         
         try:
-            # Search ChromaDB for similar documents
-            results = await self.chromadb_service.search_similar(query, top_k)
+            # Search Pinecone for similar documents
+            results = await self.vector_service.search_similar(query, top_k)
             
             # Extract document IDs
             doc_ids = [doc['id'] for doc in results]

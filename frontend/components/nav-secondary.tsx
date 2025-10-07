@@ -20,9 +20,25 @@ export function NavSecondary({
     title: string
     url: string
     icon: LucideIcon
+    isDropdown?: boolean
+    dropdownItems?: {
+      title: string
+      url: string
+      icon: LucideIcon
+    }[]
   }[]
   customRenderers?: {
-    [key: string]: (item: { title: string; url: string; icon: LucideIcon }) => React.ReactNode
+    [key: string]: (item: { 
+      title: string
+      url: string
+      icon: LucideIcon
+      isDropdown?: boolean
+      dropdownItems?: {
+        title: string
+        url: string
+        icon: LucideIcon
+      }[]
+    }) => React.ReactNode
   }
 } & React.ComponentPropsWithoutRef<typeof SidebarGroup>) {
   return (

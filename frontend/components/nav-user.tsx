@@ -4,6 +4,7 @@ import {
   BarChartIcon,
   BellIcon,
   Bug,
+  ChevronRightIcon,
   CreditCardIcon,
   DatabaseIcon,
   FileCodeIcon,
@@ -17,6 +18,10 @@ import {
   UserCircleIcon,
   UsersIcon,
   Globe,
+  Building2Icon,
+  LayersIcon,
+  NetworkIcon,
+  ServerIcon,
 } from "lucide-react"
 
 import {
@@ -31,6 +36,9 @@ import {
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import {
@@ -138,39 +146,115 @@ export function NavUser({
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
             <DropdownMenuGroup>
+              <DropdownMenuLabel>Architecture</DropdownMenuLabel>
+              <DropdownMenuSub>
+                <DropdownMenuSubTrigger>
+                  <Building2Icon />
+                  System Architecture
+                </DropdownMenuSubTrigger>
+                <DropdownMenuSubContent>
+                  <DropdownMenuItem onClick={() => window.open('/architecture', '_blank')}>
+                    <LayersIcon />
+                    System Overview
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => window.open('/architecture/database', '_blank')}>
+                    <DatabaseIcon />
+                    Database Schema
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => window.open('/architecture/api', '_blank')}>
+                    <NetworkIcon />
+                    API Structure
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => window.open('/architecture/infrastructure', '_blank')}>
+                    <ServerIcon />
+                    Infrastructure
+                  </DropdownMenuItem>
+                </DropdownMenuSubContent>
+              </DropdownMenuSub>
+            </DropdownMenuGroup>
+            <DropdownMenuSeparator />
+            <DropdownMenuGroup>
               <DropdownMenuLabel>Manage</DropdownMenuLabel>
-              <DropdownMenuItem>
-                <SearchIcon />
-                Policy Search
-              </DropdownMenuItem>
-              <DropdownMenuItem>
-                <BarChartIcon />
-                Analytics
-              </DropdownMenuItem>
-              <DropdownMenuItem>
-                <FolderIcon />
-                Documents
-              </DropdownMenuItem>
-              <DropdownMenuItem>
-                <UsersIcon />
-                Team
-              </DropdownMenuItem>
-              <DropdownMenuItem>
-                <FileTextIcon />
-                Education Policies
-              </DropdownMenuItem>
-              <DropdownMenuItem>
-                <FileIcon />
-                Administrative
-              </DropdownMenuItem>
-              <DropdownMenuItem>
-                <FileCodeIcon />
-                AI Prompts
-              </DropdownMenuItem>
-              <DropdownMenuItem>
-                <DatabaseIcon />
-                Policy Database
-              </DropdownMenuItem>
+              
+              {/* Content Management Group */}
+              <DropdownMenuSub>
+                <DropdownMenuSubTrigger>
+                  <FileTextIcon />
+                  Content
+                </DropdownMenuSubTrigger>
+                <DropdownMenuSubContent>
+                  <DropdownMenuItem>
+                    <SearchIcon />
+                    Policy Search
+                  </DropdownMenuItem>
+                  <DropdownMenuItem>
+                    <FileTextIcon />
+                    Education Policies
+                  </DropdownMenuItem>
+                  <DropdownMenuItem>
+                    <FileIcon />
+                    Administrative
+                  </DropdownMenuItem>
+                  <DropdownMenuItem>
+                    <DatabaseIcon />
+                    Policy Database
+                  </DropdownMenuItem>
+                </DropdownMenuSubContent>
+              </DropdownMenuSub>
+
+              {/* Analytics & Reports Group */}
+              <DropdownMenuSub>
+                <DropdownMenuSubTrigger>
+                  <BarChartIcon />
+                  Analytics
+                </DropdownMenuSubTrigger>
+                <DropdownMenuSubContent>
+                  <DropdownMenuItem>
+                    <BarChartIcon />
+                    Reports
+                  </DropdownMenuItem>
+                  <DropdownMenuItem>
+                    <FolderIcon />
+                    Documents
+                  </DropdownMenuItem>
+                </DropdownMenuSubContent>
+              </DropdownMenuSub>
+
+              {/* Team & Collaboration Group */}
+              <DropdownMenuSub>
+                <DropdownMenuSubTrigger>
+                  <UsersIcon />
+                  Team
+                </DropdownMenuSubTrigger>
+                <DropdownMenuSubContent>
+                  <DropdownMenuItem>
+                    <UsersIcon />
+                    Members
+                  </DropdownMenuItem>
+                  <DropdownMenuItem>
+                    <UserCircleIcon />
+                    Permissions
+                  </DropdownMenuItem>
+                </DropdownMenuSubContent>
+              </DropdownMenuSub>
+
+              {/* AI & Development Group */}
+              <DropdownMenuSub>
+                <DropdownMenuSubTrigger>
+                  <FileCodeIcon />
+                  AI Tools
+                </DropdownMenuSubTrigger>
+                <DropdownMenuSubContent>
+                  <DropdownMenuItem>
+                    <FileCodeIcon />
+                    AI Prompts
+                  </DropdownMenuItem>
+                  <DropdownMenuItem>
+                    <Bug />
+                    Model Testing
+                  </DropdownMenuItem>
+                </DropdownMenuSubContent>
+              </DropdownMenuSub>
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
             <DropdownMenuItem>
